@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chennai Turf Finder</title>
+<style>
+  :root{
+    --pitch:#1f5f3f;
+    --pitch-dark:#163f2a;
+    --line:#eef3ea;
+    --chalk:#f6f3ea;
+    --clay:#b5652b;
+    --ink:#152018;
+    --ink-soft:#4a5a4f;
+    --panel:#ffffff;
+    --panel-line:#dde5dc;
+    --shadow: 0 1px 0 rgba(21,32,24,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    background:var(--chalk);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .field-band{
+    background:
+      repeating-linear-gradient(
+        90deg,
+        var(--pitch) 0px, var(--pitch) 64px,
+        var(--pitch-dark) 64px, var(--pitch-dark) 128px
+      );
+    padding:52px 20px 64px;
+    position:relative;
+    overflow:hidden;
+  }
+  .field-band::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(rgba(0,0,0,.14), rgba(0,0,0,.14));
+  }
+  .field-inner{
+    max-width:1040px;
+    margin:0 auto;
+    position:relative;
+    z-index:1;
+  }
+  .kicker{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:var(--line);
+    opacity:.75;
+    font-size:13px;
+    letter-spacing:.04em;
+    margin:0 0 10px;
+  }
+  h1{
+    font-size:clamp(34px,6vw,58px);
+    line-height:1.02;
+    margin:0 0 14px;
+    color:#fff;
+    font-weight:600;
+    max-width:760px;
+    text-wrap:balance;
+  }
+  h1 em{
+    font-style:normal;
+    color:#f2d9a8;
+  }
+  .sub{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:var(--line);
+    font-size:16px;
+    max-width:560px;
+    line-height:1.55;
+    margin:0 0 28px;
+    opacity:.92;
+  }
+  .scoreboard{
+    display:flex;
+    gap:0;
+    flex-wrap:wrap;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:10px;
+    overflow:hidden;
+    width:fit-content;
+    background:rgba(0,0,0,.18);
+    backdrop-filter: blur(2px);
+  }
+  .score-cell{
+    padding:14px 22px;
+    border-right:1px solid rgba(255,255,255,.25);
+    min-width:110px;
+  }
+  .score-cell:last-child{border-right:none;}
+  .score-num{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:26px;
+    font-weight:700;
+    color:#fff;
+    line-height:1;
+  }
+  .score-label{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    letter-spacing:.05em;
+    color:var(--line);
+    opacity:.8;
+    margin-top:5px;
+  }
+
+  main{
+    max-width:1040px;
+    margin:-30px auto 0;
+    padding:0 20px 80px;
+    position:relative;
+    z-index:2;
+  }
+
+  .controls{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:12px;
+    box-shadow:0 8px 24px rgba(21,32,24,.08);
+    padding:22px 24px 20px;
+    margin-bottom:34px;
+  }
+  .search-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  #search{
+    flex:1;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:15px;
+    padding:11px 14px;
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    background:#fbfbf8;
+    color:var(--ink);
+  }
+  #search:focus{outline:2px solid var(--pitch); outline-offset:1px;}
+
+  .search-wrap{
+    position:relative;
+    flex:1;
+  }
+  .search-wrap #search{width:100%;}
+  .suggestions{
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0;
+    right:0;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:10px;
+    box-shadow:0 10px 28px rgba(21,32,24,.14);
+    z-index:20;
+    max-height:320px;
+    overflow-y:auto;
+  }
+  .suggestion-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    cursor:pointer;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    border-bottom:1px solid #f0f1ec;
+  }
+  .suggestion-item:last-child{border-bottom:none;}
+  .suggestion-item:hover, .suggestion-item.highlighted{
+    background:#f3f6f1;
+  }
+  .suggestion-icon{
+    font-size:16px;
+    width:22px;
+    text-align:center;
+    flex-shrink:0;
+  }
+  .suggestion-text{
+    flex:1;
+    min-width:0;
+  }
+  .suggestion-name{
+    font-size:14px;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .suggestion-name mark{
+    background:#f2d9a8;
+    color:var(--ink);
+    border-radius:2px;
+  }
+  .suggestion-meta{
+    font-size:12px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .suggestion-kind{
+    font-size:10.5px;
+    letter-spacing:.03em;
+    color:#93998f;
+    flex-shrink:0;
+    text-transform:uppercase;
+  }
+
+  .chat-section{
+    margin-top:44px;
+    padding-top:32px;
+    border-top:1px solid var(--panel-line);
+  }
+  .chat-header h2{
+    font-size:24px;
+    margin:0 0 6px;
+    font-weight:600;
+  }
+  .chat-sub{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    margin:0 0 18px;
+    max-width:620px;
+  }
+  .chat-key-setup{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  #geminiKeyInput{
+    flex:1;
+    min-width:220px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    padding:10px 12px;
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    background:#fbfbf8;
+  }
+  #saveKeyBtn{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    font-weight:600;
+    padding:0 16px;
+    border-radius:8px;
+    border:1px solid var(--pitch);
+    background:var(--pitch);
+    color:#fff;
+    cursor:pointer;
+  }
+  #saveKeyBtn:hover{background:var(--pitch-dark);}
+  .key-help-link{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+    text-decoration:underline;
+    align-self:center;
+    white-space:nowrap;
+  }
+  .chat-key-note{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    color:#93998f;
+    line-height:1.6;
+    margin:0 0 18px;
+    max-width:640px;
+  }
+  .chat-log{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-height:60px;
+    max-height:420px;
+    overflow-y:auto;
+    margin-bottom:14px;
+  }
+  .chat-msg{
+    max-width:80%;
+    padding:10px 14px;
+    border-radius:12px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .chat-msg.user{
+    align-self:flex-end;
+    background:var(--pitch);
+    color:#fff;
+    border-bottom-right-radius:3px;
+  }
+  .chat-msg.bot{
+    align-self:flex-start;
+    background:#fbfbf8;
+    border:1px solid var(--panel-line);
+    color:var(--ink);
+    border-bottom-left-radius:3px;
+  }
+  .chat-msg.bot.error{
+    background:#fbeee4;
+    border-color:#f0d3bc;
+    color:#8a4318;
+  }
+  .chat-msg.bot.pending{
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  .chat-input-row{
+    display:flex;
+    gap:8px;
+  }
+  #chatInput{
+    flex:1;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    padding:11px 14px;
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    background:#fbfbf8;
+  }
+  #chatInput:disabled{opacity:.6;}
+  #chatSendBtn{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    font-weight:600;
+    padding:0 20px;
+    border-radius:8px;
+    border:1px solid var(--pitch);
+    background:var(--pitch);
+    color:#fff;
+    cursor:pointer;
+  }
+  #chatSendBtn:disabled{opacity:.5; cursor:not-allowed;}
+  #chatSendBtn:not(:disabled):hover{background:var(--pitch-dark);}
+  .chat-footnote{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12px;
+    color:#93998f;
+    margin:10px 0 0;
+  }
+
+  .nearby-btn{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    font-weight:600;
+    padding:0 18px;
+    border-radius:8px;
+    border:1px solid var(--pitch);
+    background:var(--pitch);
+    color:#fff;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .12s ease;
+  }
+  .nearby-btn:hover{background:var(--pitch-dark);}
+  .nearby-btn.active{
+    background:var(--clay);
+    border-color:var(--clay);
+  }
+  .nearby-btn:disabled{
+    opacity:.6;
+    cursor:wait;
+  }
+  .nearby-status{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    padding:10px 14px;
+    border-radius:8px;
+    margin-bottom:16px;
+    line-height:1.5;
+  }
+  .nearby-status.info{background:#eef3ea; color:var(--pitch-dark); border:1px solid #d9e6d2;}
+  .nearby-status.error{background:#fbeee4; color:#8a4318; border:1px solid #f0d3bc;}
+  .nearby-status a.settings-hint{color:inherit; text-decoration:underline; font-weight:600;}
+  .card-distance{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--pitch-dark);
+    background:#eef3ea;
+    padding:3px 9px;
+    border-radius:6px;
+    display:inline-block;
+    margin-bottom:6px;
+  }
+
+  .filter-group{margin-bottom:14px;}
+  .filter-group:last-child{margin-bottom:0;}
+  .filter-title{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    margin-bottom:9px;
+  }
+  .chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .chip{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    padding:7px 13px;
+    border-radius:999px;
+    border:1px solid var(--panel-line);
+    background:#fbfbf8;
+    color:var(--ink);
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .chip:hover{border-color:var(--pitch);}
+  .chip.active{
+    background:var(--pitch);
+    border-color:var(--pitch);
+    color:#fff;
+  }
+  .chip .count{
+    opacity:.65;
+    margin-left:5px;
+    font-variant-numeric:tabular-nums;
+  }
+  .chip.active .count{opacity:.85;}
+
+  .results-meta{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0 2px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .results-meta button{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    background:none;
+    border:none;
+    color:var(--clay);
+    font-size:13px;
+    cursor:pointer;
+    padding:0;
+    text-decoration:underline;
+  }
+
+  .locality-summary{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+    background:#fbfbf8;
+    border:1px dashed var(--panel-line);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:26px;
+    line-height:1.7;
+  }
+  .locality-summary strong{color:var(--ink); font-weight:600;}
+
+  .cards{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+  .card{
+    display:grid;
+    grid-template-columns:64px 1fr auto;
+    gap:16px;
+    align-items:start;
+    padding:20px 6px;
+    border-bottom:1px solid var(--panel-line);
+  }
+  .card:first-child{border-top:1px solid var(--panel-line);}
+  .card-icon{
+    width:48px;height:48px;
+    border-radius:10px;
+    background:var(--pitch);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:19px;
+    flex-shrink:0;
+  }
+  .card-body h3{
+    margin:0 0 4px;
+    font-size:19px;
+    font-weight:600;
+  }
+  .card-tags{
+    display:flex;gap:6px;flex-wrap:wrap;
+    margin:4px 0 8px;
+  }
+  .tag{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    letter-spacing:.03em;
+    padding:3px 9px;
+    border-radius:5px;
+    background:#eef3ea;
+    color:var(--pitch-dark);
+    border:1px solid #d9e6d2;
+  }
+  .tag.locality{
+    background:#fbf1e4;
+    color:#8a5218;
+    border-color:#f0ddbc;
+  }
+  .card-address{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    margin:0 0 6px;
+    max-width:520px;
+  }
+  .card-meta-line{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .card-meta-line .rating{color:var(--clay); font-weight:600;}
+  .card-actions{
+    text-align:right;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+    min-width:150px;
+  }
+  .phone-known{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    font-weight:600;
+    color:var(--pitch-dark);
+    text-decoration:none;
+    background:#eef3ea;
+    padding:7px 12px;
+    border-radius:7px;
+    border:1px solid #d9e6d2;
+  }
+  .phone-known:hover{background:#e2ecdd;}
+  .phone-unknown{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12px;
+    color:#9a9184;
+    font-style:italic;
+    max-width:150px;
+    text-align:right;
+    line-height:1.4;
+  }
+  .map-link{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-decoration:none;
+    border-bottom:1px solid var(--panel-line);
+  }
+  .map-link:hover{color:var(--pitch-dark); border-color:var(--pitch-dark);}
+
+  .empty-state{
+    padding:60px 20px;
+    text-align:center;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink-soft);
+  }
+
+  footer{
+    max-width:1040px;
+    margin:0 auto;
+    padding:0 20px 60px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    color:#93998f;
+    line-height:1.7;
+  }
+  footer a{color:#93998f;}
+
+  @media (max-width:640px){
+    .card{grid-template-columns:44px 1fr; }
+    .card-icon{width:40px;height:40px;font-size:16px;}
+    .card-actions{
+      grid-column:1 / -1;
+      flex-direction:row;
+      justify-content:space-between;
+      align-items:center;
+      margin-top:10px;
+      min-width:0;
+    }
+    .phone-unknown{text-align:left; max-width:none;}
+    .scoreboard{width:100%;}
+    .score-cell{flex:1; min-width:0; padding:12px 10px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="field-band">
+  <div class="field-inner">
+    <p class="kicker">CHENNAI · SPORTS TURF DIRECTORY</p>
+    <h1>Find a turf, <em>anywhere in the city.</em></h1>
+    <p class="sub">A running list of cricket, football, badminton, tennis, pickleball and more venues across Chennai — filter by sport or locality to see what's nearby.</p>
+    <div class="scoreboard" id="scoreboard"></div>
+  </div>
+</div>
+
+<main>
+  <div class="controls">
+    <div class="search-row">
+      <div class="search-wrap">
+        <input type="text" id="search" placeholder="Search by venue name, area, or address…" autocomplete="off">
+        <div id="suggestions" class="suggestions" style="display:none;"></div>
+      </div>
+      <button type="button" id="nearbyBtn" class="nearby-btn">📍 Nearby</button>
+    </div>
+    <div id="nearbyStatus" class="nearby-status" style="display:none;"></div>
+    <div class="filter-group">
+      <div class="filter-title">SPORT</div>
+      <div class="chip-row" id="sportChips"></div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-title">LOCALITY</div>
+      <div class="chip-row" id="localityChips"></div>
+    </div>
+  </div>
+
+  <div class="results-meta">
+    <span id="resultCount"></span>
+    <button id="clearFilters" type="button">Clear filters</button>
+  </div>
+
+  <div class="locality-summary" id="localitySummary"></div>
+
+  <div class="cards" id="cards"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">No turfs match that search. Try a different sport, locality, or keyword.</div>
+
+  <section class="chat-section" id="chatSection">
+    <div class="chat-header">
+      <h2>Ask about Chennai turfs</h2>
+      <p class="chat-sub">Powered by Google Gemini, answering from the 238 venues listed on this page. Requires your own free Gemini API key — it's saved only in your browser and sent only to Google's API, never anywhere else.</p>
+    </div>
+
+    <div id="chatKeySetup" class="chat-key-setup">
+      <input type="password" id="geminiKeyInput" placeholder="Paste your Gemini API key (starts with AIza…)">
+      <button type="button" id="saveKeyBtn">Save key</button>
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="key-help-link">Get a free key ↗</a>
+    </div>
+    <p class="chat-key-note" id="chatKeyNote">
+      Heads up: this is a plain web page with no server, so the key you paste lives in this browser's local storage and travels straight to Google's API from your device. Don't paste a key here on a version of this page that you publish publicly for others to use — anyone opening the page's source could read it out of local storage. Fine for your own personal use.
+    </p>
+
+    <div id="chatLog" class="chat-log"></div>
+
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="e.g. Which badminton courts are in Anna Nagar?" disabled>
+      <button type="button" id="chatSendBtn" disabled>Send</button>
+    </div>
+    <p class="chat-footnote">This assistant can only see the turfs listed on this page — it can't browse Chrome or query Google Maps live. For anything beyond this directory, use the map links on each card above.</p>
+  </section>
+</main>
+
+<footer>
+  Data compiled from Google Maps listings as of September 2026 — 238 venues across 69 Chennai localities. Addresses, phone numbers and sports are as published on Maps; a few venues host more than one sport under the same roof, and a handful of localities without an exact match use an approximate area location for the "Nearby" feature. Always confirm details, hours and current pricing directly with the venue before travelling — turfs open, close and change hands often. Phone numbers marked "not publicly listed" weren't available on the source listing. The "Nearby" button uses your browser's location only in this session — it isn't stored or sent anywhere else. This is a static starter list, not a live booking service — edit the <code>venues</code> array in this file to add, correct, or remove entries.
+</footer>
+
+<script>
+const venues = [
+  {name:"turf ONE 27", sports:["Cricket","Football"], locality:"Velachery", address:"3rd floor, PSK Booshanam Mahal, 127, Velachery Bypass Rd, Velachery, Chennai 600042", phone:"+91 99626 66127", lat:12.978816, lng:80.219218, approx:false},
+  {name:"Dugout Sports", sports:["Cricket","Football"], locality:"Velachery", address:"Grand Square Mall, 137, Major Mukund Varadharajan Rd, Velachery, Chennai 600042", phone:"+91 98842 12022", lat:12.971972, lng:80.220399, approx:false},
+  {name:"Batters Den Cricket Turf", sports:["Cricket"], locality:"Velachery", address:"23, Terrace, Velachery Main Rd, Nagendra Nagar, Velachery, Chennai 600042", phone:"+91 82202 56109", lat:12.993586, lng:80.218209, approx:false},
+  {name:"Strikerz Turf", sports:["Cricket","Football"], locality:"Madipakkam", address:"No. 261, Padmavathi St, opp. Ponvidyashram school, Srinivasa Nagar, Madipakkam, Chennai 600091", phone:"+91 98404 47023", lat:12.966024, lng:80.214257, approx:false},
+  {name:"Namma Turf 42", sports:["Cricket","Football"], locality:"Velachery", address:"56, 5th Main Rd, Venus Colony Extension, Anna Nagar Extension, Velachery, Chennai 600042", phone:"+91 63803 51142", lat:12.972321, lng:80.226785, approx:false},
+  {name:"SSS Multi Sports Hub", sports:["Cricket","Football","Badminton"], locality:"Velachery", address:"7th Main Rd, Dhandeeswaram, Velachery, Chennai 600042", phone:"+91 63824 12462", lat:12.980997, lng:80.225281, approx:false},
+  {name:"Tiki Taka Velachery", sports:["Football","Cricket"], locality:"Velachery", address:"Bhuvaneshwari Nagar, Velachery East, Chennai 600042", phone:"+91 87544 90508", lat:12.968916, lng:80.222731, approx:false},
+  {name:"GO Futsal (Velachery)", sports:["Football"], locality:"Velachery", address:"Sheshadripuram Main Rd, Seshadripuram, Velachery, Chennai 600042", phone:"+91 87544 06855", lat:12.979094, lng:80.229893, approx:false},
+  {name:"Pickle Pad by Tiki Taka", sports:["Pickleball"], locality:"Velachery", address:"Bhuvaneshwari Nagar, Velachery, Chennai 600042", phone:"+91 82487 28625", lat:12.969036, lng:80.222735, approx:false},
+  {name:"PITCH N PLAY INDIA", sports:["Cricket","Football","Badminton"], locality:"Adyar", address:"101 Lattice Bridge Rd, Baktavatsalam Nagar, Adyar, Chennai 600020", phone:"+91 70596 44444", lat:13.00388, lng:80.25635, approx:false},
+  {name:"Chaos Entertainment", sports:["Cricket","Football","Badminton"], locality:"Adyar", address:"Old No 57, New No.38, 2/2, Balaraman Rd, Baktavatsalam Nagar, Adyar, Chennai 600020", phone:"+91 81480 51055", lat:13.002502, lng:80.256448, approx:false},
+  {name:"FC Marina Turf (Thiruvanmiyur Beach)", sports:["Cricket","Football"], locality:"Thiruvanmiyur", address:"111, Bay View Dr St, Valmiki Nagar, Kottivakkam, Chennai 600041", phone:null, lat:12.972736, lng:80.265812, approx:false},
+  {name:"Shastri Nagar Cricket Ground", sports:["Cricket"], locality:"Adyar", address:"11th Cross St, Shastri Nagar, Adyar, Chennai 600020", phone:null, lat:12.999765, lng:80.261269, approx:false},
+  {name:"BOX TO BOX Football Turf", sports:["Football"], locality:"Choolai", address:"Avadhanam Papier Road, Choolai, Chennai 600007", phone:"+91 99405 90565", lat:13.090615, lng:80.261146, approx:false},
+  {name:"Rush Madras, Santhome", sports:["Badminton","Basketball"], locality:"Mandaveli", address:"27GC+4M5, Mandavelipakkam, Raja Annamalaipuram, Chennai 600028", phone:"+91 75195 41954", lat:13.025417, lng:80.271263, approx:false},
+  {name:"Madras Club Indoor Badminton Courts", sports:["Badminton"], locality:"Nandanam", address:"Madras Club, 7/5, Adyar Club Gate Rd, Nandanam, Chennai 600028", phone:null, lat:13.025579, lng:80.247884, approx:false},
+  {name:"CUBE SPORTS ARENA", sports:["Cricket"], locality:"Anna Nagar", address:"Y, 209, 2nd Ave, Y Block, Anna Nagar, Chennai 600040", phone:"+91 91763 03333", lat:13.085146, lng:80.210427, approx:false},
+  {name:"The War Arena", sports:["Cricket","Football","Tennis","Pickleball"], locality:"Arumbakkam", address:"81, Razack Garden Ave, Rani Anna Nagar, Arumbakkam, Chennai 600106", phone:"+91 72000 31152", lat:13.071067, lng:80.215414, approx:false},
+  {name:"Nutmeg", sports:["Football","Cricket"], locality:"Anna Nagar", address:"15/2132, Agathiyar Nagar Extension 2nd St, Anna Nagar West, Chennai 600040", phone:"+91 70107 31413", lat:13.083656, lng:80.202782, approx:false},
+  {name:"Bails & Goals Turf", sports:["Football"], locality:"Anna Nagar", address:"1332, 20th Main Rd, Aishwarya Colony, Thangam Colony, Anna Nagar, Chennai 600040", phone:null, lat:13.093407, lng:80.204099, approx:false},
+  {name:"CRICZONE Turf & DGM Cricket Academy", sports:["Cricket"], locality:"Villivakkam", address:"47, Bajanai Koil Street, Thathan Kuppam, Villivakkam, Chennai 600049", phone:"+91 98841 94191", lat:13.115971, lng:80.201275, approx:false},
+  {name:"One 'O' One Turf", sports:["Cricket","Football"], locality:"Villivakkam", address:"8, Agathiyar Nagar Extension 2nd St, Lakshmipuram, Villivakkam, Chennai 600049", phone:"+91 96005 18123", lat:13.101404, lng:80.206838, approx:false},
+  {name:"Football Turf At Decathlon Mogappair", sports:["Football"], locality:"Mogappair", address:"Opp. Decathlon Mogappair, Ambattur-Maduravoyal NH Service Rd, Nolambur, Chennai 600058", phone:null, lat:13.083838, lng:80.160952, approx:false},
+  {name:"Ten - Eleven Sports Turf", sports:["Cricket","Football"], locality:"Porur", address:"Samayapuram Main Rd, Kandasamy Nagar, Porur, Vanagaram 600116", phone:"+91 90030 12351", lat:13.043167, lng:80.150614, approx:false},
+  {name:"Retro Turf and Pickleball", sports:["Cricket","Football","Pickleball"], locality:"Porur", address:"9, Ramakrishna Nagar Main Rd, Madhanandapuram, Chennai 600125", phone:"+91 80729 84969", lat:13.028707, lng:80.156541, approx:false},
+  {name:"FC Marina Football Turf & Box Cricket (Vanagaram)", sports:["Football","Cricket"], locality:"Porur", address:"13/77, Chettiyar Agaram Rd, Numbal, Vanagaram, Chennai 600077", phone:"+91 99622 20400", lat:13.05459, lng:80.148926, approx:false},
+  {name:"Fit Floor Turf", sports:["Cricket","Football"], locality:"Porur", address:"11-A, 2nd Floor, Sambandhan Street, Alapakkam, Porur, Chennai 600116", phone:"+91 89256 64655", lat:13.040271, lng:80.166443, approx:false},
+  {name:"SS Turf", sports:["Cricket","Football"], locality:"Porur", address:"Thamarai St, Ambal Nagar East, Porur, Chennai 600116", phone:"+91 97911 90835", lat:13.031361, lng:80.159443, approx:false},
+  {name:"11/7 Turf", sports:["Cricket","Football"], locality:"Porur", address:"48, Mettukuppam Rd, Porur Gardens Phase II, Porur, Vanagaram 600116", phone:null, lat:13.037829, lng:80.156131, approx:true},
+  {name:"Game City Turf", sports:["Cricket","Football"], locality:"Sholinganallur", address:"Wipro St, Elcot SEZ, Sholinganallur, Chennai 600119", phone:"+91 99408 98563", lat:12.90804, lng:80.226882, approx:false},
+  {name:"Beyond Wickets Indoor Cricket And Badminton Club", sports:["Cricket","Badminton"], locality:"Sholinganallur", address:"New Kumaran Nagar, Sholinganallur, Chennai 600119", phone:"+91 63815 27131", lat:12.902832, lng:80.235232, approx:false},
+  {name:"Madras Sports Hub", sports:["Cricket","Football","Pickleball"], locality:"Sholinganallur", address:"2/3, Bajanai Koil St, Devaraj Nagar, Sholinganallur, Chennai 600119", phone:"+91 96297 77128", lat:12.903429, lng:80.231724, approx:false},
+  {name:"FREE HIT SPORTZ - OMR", sports:["Cricket"], locality:"Sholinganallur", address:"Old No.155, TNHB Main Rd, TNHB, Sholinganallur, Chennai 600119", phone:"+91 63836 62828", lat:12.893347, lng:80.235761, approx:false},
+  {name:"Maverick Sports Yard", sports:["Cricket","Football"], locality:"Sholinganallur", address:"Plot No 6 & 7, 1st Street, right to MGR Road, Sholinganallur, Chennai 600119", phone:"+91 81221 22364", lat:12.896435, lng:80.230217, approx:false},
+  {name:"OMR SPORTS ARENA", sports:["Cricket","Badminton"], locality:"Sholinganallur", address:"461/6A, SH 49A, Elcot SEZ, Sholinganallur, Chennai 600119", phone:"+91 96000 93205", lat:12.907659, lng:80.227992, approx:false},
+  {name:"OMR Futsal Arena (Turf)", sports:["Football"], locality:"Karapakkam", address:"461/6A, ART Complex, Opp Accenture, Rajiv Gandhi Salai, Karapakkam, Chennai 600119", phone:"+91 96000 93205", lat:12.907659, lng:80.227742, approx:false},
+  {name:"Nook Pickleball", sports:["Pickleball"], locality:"Karapakkam", address:"163/10A, Easwaran St, Muthamizh Nagar, Karapakkam, Chennai 600097", phone:"+91 75500 51330", lat:12.917084, lng:80.228805, approx:false},
+  {name:"Takaro Turf", sports:["Cricket","Football","Badminton","Pickleball"], locality:"Perungudi", address:"38/4, Anna Nedunchalai, opp. Decathlon OMR, Govindasamy Nagar, Perungudi, Chennai 600096", phone:"+91 98947 06999", lat:12.966833, lng:80.247197, approx:false},
+  {name:"The Royal Turf", sports:["Cricket","Football"], locality:"Perungudi", address:"2nd Cross St, Janakiraman Nagar, Perungudi, Chennai 600096", phone:"+91 91761 47217", lat:12.956599, lng:80.238118, approx:false},
+  {name:"Falcon Sports Arena", sports:["Badminton"], locality:"Perungudi", address:"41, 2B2, Seevaram 3rd St, Seevaram, Perungudi, Chennai 600096", phone:"+91 99529 92629", lat:12.953512, lng:80.241223, approx:false},
+  {name:"Game On OMR", sports:["Cricket","Football"], locality:"Perungudi", address:"9, GM Ave, Phase-1, Elim Nagar, Perungudi, Chennai 600096", phone:"+91 99400 87315", lat:12.959389, lng:80.236669, approx:false},
+  {name:"Thecos Football Court", sports:["Football"], locality:"Perungudi", address:"Corporation Rd, Sri Kumaran Nagar, Saravana Nagar, Perungudi, Chennai 600096", phone:null, lat:12.954666, lng:80.23887, approx:false},
+  {name:"Box Cricket Turf", sports:["Cricket","Badminton","Football"], locality:"Thoraipakkam", address:"510, VPG Ave Main Rd, Gandhi Nagar, Thoraipakkam, Chennai 600097", phone:null, lat:12.940441, lng:80.234977, approx:false},
+  {name:"The 4th Zone Turf", sports:["Football"], locality:"Thoraipakkam", address:"3rd Main Rd, Okkiyam, Thoraipakkam, Chennai 600072", phone:"+91 73583 56632", lat:12.9523, lng:80.236698, approx:false},
+  {name:"ATHLIX Sports Arena", sports:["Cricket","Football","Badminton"], locality:"Thoraipakkam", address:"Pillayar Kovil St, Suleiman Nagar, Mettukuppam, Thoraipakkam, Chennai 600097", phone:"+91 91764 01010", lat:12.939148, lng:80.236923, approx:false},
+  {name:"Ridley's Pickleball", sports:["Pickleball"], locality:"Thoraipakkam", address:"Plot 86 & 87, 2nd Main Rd, Sri Sai Nagar, Thoraipakkam, Chennai 600097", phone:"+91 73056 93268", lat:12.951359, lng:80.235261, approx:false},
+  {name:"Paddle Lounge - Pickleball", sports:["Pickleball"], locality:"Kottivakkam", address:"15, 18th St, Venkateswara Nagar, Kottivakkam, Chennai 600041", phone:"+91 99622 33833", lat:12.966996, lng:80.261633, approx:false},
+  {name:"Madras Pickleball", sports:["Pickleball"], locality:"Thiruvanmiyur", address:"1st Main Rd, Bharathi Nagar, Thiruvanmiyur, Chennai 600041", phone:"+91 99940 57478", lat:12.980953, lng:80.255057, approx:false},
+  {name:"Blue Bay Pickleball Arena", sports:["Pickleball"], locality:"Neelankarai", address:"4/222, East Coast Rd, near Neelankarai Police Station, Chennai 600115", phone:"+91 95001 31222", lat:12.94739, lng:80.253839, approx:false},
+  {name:"FC Marina Football Turf & Box Cricket (Tambaram)", sports:["Football","Cricket"], locality:"Tambaram", address:"No.18, Karumariamman Nagar, West Tambaram, Chennai 600045", phone:"+91 99622 20400", lat:12.923072, lng:80.099862, approx:false},
+  {name:"9S Indoor Cricket Facility", sports:["Cricket","Pickleball"], locality:"Tambaram", address:"RR Complex, 54/630, Mudichur Rd, Krishna Nagar, West Tambaram, Chennai 600045", phone:"+91 70270 24177", lat:12.922759, lng:80.095973, approx:false},
+  {name:"FUTSO: Your Place to Play", sports:["Football","Cricket"], locality:"Tambaram", address:"Sree Sai Nagar, Tambaram, Chennai 600045", phone:"+91 74837 29338", lat:12.934125, lng:80.099102, approx:false},
+  {name:"SKCC Sports Hub Indoor Turf", sports:["Cricket"], locality:"Chitlapakkam", address:"Nelson Mandela St, near NSN School, Sudha Avenue, Chitlapakkam, Chennai 600064", phone:"+91 99401 34823", lat:12.930361, lng:80.14054, approx:false},
+  {name:"7s Turf Tambaram", sports:["Cricket","Football"], locality:"Tambaram", address:"40, South St, West Tambaram, Chennai 600045", phone:null, lat:12.92397, lng:80.102347, approx:false},
+  {name:"Turf 21", sports:["Cricket"], locality:"Chromepet", address:"21/16, Big St, Jamin Rayapettah, Chromepet, Chennai 600044", phone:"+91 63849 32020", lat:12.948552, lng:80.156888, approx:false},
+  {name:"Diamond Sports Arena", sports:["Cricket"], locality:"Chromepet", address:"72/2, Nemilichery Main Road, Kuppannayakkanpetai, Chromepet, Chennai 600044", phone:"+91 75500 78862", lat:12.945758, lng:80.162952, approx:false},
+  {name:"PlayPro7 Sports Turf", sports:["Cricket","Football"], locality:"Chromepet", address:"30, Temple Town Street, Tiruneermalai Main Rd, Chromepet, Chennai 600132", phone:"+91 93635 45828", lat:12.961223, lng:80.123574, approx:false},
+  {name:"Splendor Sports Arena", sports:["Badminton","Football"], locality:"Chromepet", address:"Kannammal Nagar Extension, Chromepet, Chennai 600044", phone:"+91 81109 09900", lat:12.939175, lng:80.160175, approx:false},
+  {name:"Aadukalam Sports Centre", sports:["Cricket","Football"], locality:"Chitlapakkam", address:"9A, Gandhi St, State Bank Of India Colony, Chitlapakkam, Chennai 600064", phone:"+91 98419 31474", lat:12.936132, lng:80.1393, approx:false},
+  {name:"THE TURF TALES", sports:["Cricket"], locality:"Kolathur", address:"Venus Nagar, 1a, 5th St, Teachers Colony, Kolathur, Chennai 600099", phone:"+91 75503 03038", lat:13.12851, lng:80.204037, approx:false},
+  {name:"Ares Espirito Turf", sports:["Cricket"], locality:"Madhavaram", address:"48, Devaki Nagar Main Rd, Majestic Colony, Lakshmi Nagar, Ponniammanmedu, Chennai 600110", phone:"+91 63820 82807", lat:13.131372, lng:80.221463, approx:false},
+  {name:"SH Sports Godown Kolathur", sports:["Cricket"], locality:"Kolathur", address:"20/21, Surapet Main Rd, Lakshmi Amman Nagar, Kolathur, Chennai 600099", phone:null, lat:13.141196, lng:80.196303, approx:false},
+  {name:"TOSS Turf & Tossports", sports:["Cricket","Football"], locality:"Kolathur", address:"RDS Avenue, plot 4, Kanchi Nagar, Vinayakapuram, Kolathur, Chennai 600099", phone:"+91 91769 95707", lat:13.140223, lng:80.208837, approx:false},
+  {name:"Ginga Indoor Arena", sports:["Cricket","Football"], locality:"Kolathur", address:"Padma Nagar, Red Hills Rd, Ramdass Nagar, Kolathur, Chennai 600099", phone:"+91 93444 23334", lat:13.128621, lng:80.216124, approx:false},
+  {name:"Ramp The Sports Hub", sports:["Badminton","Cricket","Football"], locality:"Kolathur", address:"3, 4th Cross St, Poompuhar Nagar, Venkateshwara Nagar, Kolathur, Chennai 600099", phone:"+91 98843 79979", lat:13.118886, lng:80.210378, approx:false},
+  {name:"PlayChamps Badminton Arena", sports:["Badminton"], locality:"Kolathur", address:"9/5, Bajanai Koil St, Bharathi Nagar, Kolathur, Chennai 600099", phone:null, lat:13.048884, lng:80.202843, approx:true},
+  {name:"TURF 360 Sports Academy", sports:["Cricket","Football"], locality:"Madipakkam", address:"34, 12th Cross St, Ram Nagar South, Madipakkam, Chennai 600091", phone:"+91 90425 21142", lat:12.959093, lng:80.209977, approx:false},
+  {name:"Spark Turf", sports:["Football"], locality:"Madipakkam", address:"15, Murugappa St, Muthiyal Reddy Nagar, Puzhuthivakkam, Madipakkam, Chennai 600091", phone:"+91 94296 92383", lat:12.976386, lng:80.201661, approx:false},
+  {name:"FC Marina Football Turf & Box Cricket (Madipakkam)", sports:["Football","Cricket"], locality:"Madipakkam", address:"200, 9th Main Rd, Ram Nagar South Extension, Madipakkam, Chennai 600091", phone:"+91 95001 00878", lat:12.951413, lng:80.206596, approx:false},
+  {name:"Namma Turf 91'", sports:["Cricket","Football"], locality:"Madipakkam", address:"Plot No, 64, Gangai St, Ramalinga Nagar, Ram Nagar, Madipakkam, Chennai 600091", phone:"+91 82486 26345", lat:12.968162, lng:80.207963, approx:false},
+  {name:"Boundary Blitz Turf - Madipakkam", sports:["Cricket","Football"], locality:"Madipakkam", address:"21, Lakshmi St, Balaiah Garden, Madipakkam, Chennai 600091", phone:"+91 72992 00423", lat:12.966102, lng:80.200276, approx:false},
+  {name:"Football Turf (Madipakkam)", sports:["Football"], locality:"Madipakkam", address:"Puzhuthivakkam, Balaji Nagar, Madipakkam, Chennai 600091", phone:null, lat:12.973354, lng:80.204711, approx:false},
+  {name:"H & M - Multi Sports Turf", sports:["Cricket","Football","Volleyball"], locality:"Pallikaranai", address:"Rajalakshmi Nagar 2nd St, Pallikaranai, Chennai 600100", phone:"+91 80727 42724", lat:12.929649, lng:80.211987, approx:false},
+  {name:"Shadow Multisport Turf", sports:["Cricket"], locality:"Pallikaranai", address:"22, Palandi Amman Koil St, Aathimulam Nagar, Pallikaranai, Chennai 600100", phone:"+91 99411 18983", lat:12.933787, lng:80.201857, approx:false},
+  {name:"Knockout City Indoor Turf", sports:["Cricket","Football"], locality:"Pallikaranai", address:"Naheswari Amman Nagar Main Road, Narayanapuram, Pallikaranai, Chennai 600100", phone:"+91 93458 65471", lat:12.946436, lng:80.203823, approx:false},
+  {name:"Pranav Sports (Futsal)", sports:["Football"], locality:"Pallikaranai", address:"1st Main Rd, Pallikaranai, Chennai 600100", phone:"+91 98848 15979", lat:12.937929, lng:80.206668, approx:false},
+  {name:"Tackle Futsal Pallikaranai", sports:["Football","Cricket"], locality:"Pallikaranai", address:"Ambal Nagar, Pallikaranai, Medavakkam 600100", phone:null, lat:12.936244, lng:80.194265, approx:false},
+  {name:"A Kube Sports Kingdom", sports:["Cricket","Football"], locality:"Ambattur", address:"167, Jayanthi Nagar, Karukku, Ambattur, Chennai 600053", phone:"+91 84894 84000", lat:13.119499, lng:80.174034, approx:false},
+  {name:"ArenaZ @ Nathella", sports:["Cricket","Football"], locality:"Ambattur", address:"NSC St, Venkatapuram, Ambattur, Chennai 600053", phone:"+91 79072 00277", lat:13.11941, lng:80.15905, approx:false},
+  {name:"JJ Turf Zone", sports:["Cricket","Football"], locality:"Ambattur", address:"530, Moogambigai Nagar, Kallikuppam, Ambattur, Chennai 600053", phone:"+91 86672 24668", lat:13.132611, lng:80.180247, approx:false},
+  {name:"Optimus Turf", sports:["Cricket","Football"], locality:"Ambattur", address:"150, Ambattur Red Hills Rd, Bharati Nagar, Ambattur, Chennai 600053", phone:"+91 99622 09998", lat:13.129178, lng:80.15757, approx:false},
+  {name:"Swastik Sports Arena Cricket and Football Turf", sports:["Cricket","Football"], locality:"Ambattur", address:"10, Kallikuppam Service Road, Menambedu, Ambattur, Chennai 600053", phone:"+91 98402 04534", lat:13.123835, lng:80.166981, approx:false},
+  {name:"GVR Sports Arena (Cricket & Badminton Academy)", sports:["Cricket","Badminton"], locality:"Ambattur", address:"467/2b, Kambar St, Attipattu, Ambattur Industrial Estate, Chennai 600058", phone:"+91 93443 95369", lat:13.089443, lng:80.149494, approx:false},
+  {name:"FC Marina Turf (Nolambur)", sports:["Football"], locality:"Nolambur", address:"230, 4th Main Road, opp. VGN Flats, Nolambur Phase 1, Chennai 600095", phone:"+91 99622 20400", lat:13.07725, lng:80.165306, approx:false},
+  {name:"Tackle Futsal Nolambur", sports:["Football","Cricket"], locality:"Mogappair", address:"3/148, Nolambur Main Road, Mogappair West, Chennai 600095", phone:"+91 98842 25777", lat:13.066515, lng:80.16189, approx:false},
+  {name:"N4 Turf", sports:["Cricket"], locality:"Perambur", address:"333/3, Perambur Paper Mills Rd, Bunder Garden, Perambur, Chennai 600011", phone:"+91 94445 33704", lat:13.109381, lng:80.24197, approx:false},
+  {name:"Revolt the TurfWar", sports:["Cricket","Football"], locality:"Perambur", address:"131-133, M P M Road, Perambur, Chennai 600011", phone:"+91 76667 76663", lat:13.114387, lng:80.241693, approx:true},
+  {name:"Ginga Turf, Perambur", sports:["Cricket","Football"], locality:"Perambur", address:"17-5, Anbalagan Nagar St, Kennedy Square, Perambur, Chennai 600011", phone:"+91 91508 65685", lat:13.121228, lng:80.235644, approx:false},
+  {name:"Playfit Sports Turf", sports:["Cricket"], locality:"Perambur", address:"67/6, Thirunavukarasu Street, Siruvallur, Perambur, Chennai 600011", phone:"+91 95000 40893", lat:13.114647, lng:80.241249, approx:false},
+  {name:"Ginga - The Sports Crew", sports:["Cricket","Football"], locality:"Perambur", address:"Spectrum The Grand Venus Mall, 114A, Paper Mills Rd, Perambur, Chennai 600011", phone:null, lat:13.112536, lng:80.236285, approx:false},
+  {name:"ASR Sports Academy", sports:["Badminton"], locality:"Perambur", address:"7, Jeevanandam St, Perambur, Chennai 600011", phone:"+91 98844 17236", lat:13.116447, lng:80.244868, approx:false},
+  {name:"Energize Sports Table Tennis Academy", sports:["Table Tennis"], locality:"Perambur", address:"Perambur Railway Stadium, Paper Mills Rd, Jagannathan Colony, Perambur, Chennai 600011", phone:"+91 98301 79799", lat:13.108572, lng:80.244307, approx:false},
+  {name:"Kaligi Table Tennis Coaching Centre", sports:["Table Tennis"], locality:"Perambur", address:"8, Anandhavalli Street, Perambur, Chennai 600011", phone:null, lat:13.110514, lng:80.247316, approx:false},
+  {name:"Blueflame Badminton & Pickleball Academy", sports:["Badminton","Pickleball"], locality:"Perambur", address:"5, KKR Ave, Ramamurthy Nagar, Perambur, Chennai 600011", phone:"+91 84890 40997", lat:13.121767, lng:80.241902, approx:false},
+  {name:"NCAGE Sports and Fitness Arena", sports:["Cricket","Football"], locality:"Nanganallur", address:"10/1A, 6th Cross St, 3rd Stage, Nanganallur, Chennai 600061", phone:"+91 89252 84640", lat:12.97689, lng:80.187639, approx:false},
+  {name:"GMR Sports Nanganallur", sports:["Badminton"], locality:"Nanganallur", address:"3, Lakshmi Nagar 1st Main Rd, Lakshmi Nagar, Nanganallur, Chennai 600061", phone:"+91 90876 67777", lat:12.980063, lng:80.189205, approx:false},
+  {name:"Turf 137 Pickleball/Cricket/Football", sports:["Cricket","Football","Pickleball"], locality:"Guindy", address:"Maduvinkarai, Guindy, Chennai 600032", phone:"+91 89397 37137", lat:12.999438, lng:80.212788, approx:true},
+  {name:"RSD Sports Guindy", sports:["Cricket","Football"], locality:"Guindy", address:"No.02/32, 2nd St, Sathanipet, Five Furlong Rd, Maduvinkarai, Guindy, Chennai 600032", phone:"+91 73055 15512", lat:12.999438, lng:80.212788, approx:false},
+  {name:"Soccer Square", sports:["Football"], locality:"St. Thomas Mount", address:"Chand Complex, St Patricks Church Rd, Ramapuram, St. Thomas Mount, Chennai 600016", phone:"+91 99411 62020", lat:13.007408, lng:80.195938, approx:false},
+  {name:"N3 Turf", sports:["Cricket","Football"], locality:"Ekkatuthangal", address:"Cart Track Lane, Balaji Nagar, Ekkatuthangal, Chennai 600032", phone:"+91 91595 91695", lat:13.021454, lng:80.203366, approx:false},
+  {name:"F10 Futsal Arena", sports:["Football","Cricket"], locality:"Saidapet", address:"Z, 10, Alandur Rd, Industrial Area, Saidapet, Chennai 600015", phone:"+91 78455 50666", lat:13.020251, lng:80.221622, approx:false},
+  {name:"The Court", sports:["Badminton"], locality:"Velachery", address:"Plot No. 5, 3rd Street, Balamurugan Nagar, Velachery, Chennai 600042", phone:null, lat:12.9755, lng:80.222476, approx:true},
+  {name:"Zestien Feathers Badminton Academy", sports:["Badminton"], locality:"Velachery", address:"Plot 2, 2nd Cross St, Jagannatha Puram, Velachery, Chennai 600042", phone:null, lat:12.9755, lng:80.222476, approx:true},
+  {name:"Carbon Badminton Club & Coaching Academy", sports:["Badminton"], locality:"Velachery", address:"Gate No. 5, 4/48, Ayodhya Colony 1st St, VGP Seethapathy Nagar, Velachery, Chennai 600042", phone:null, lat:12.9755, lng:80.222476, approx:true},
+  {name:"Feathers Badminton Academy (Velachery)", sports:["Badminton"], locality:"Velachery", address:"2, Vadivelu Mudali St, Venkatapuram, Ambattur, Chennai 600053", phone:null, lat:12.9755, lng:80.222476, approx:true},
+  {name:"KSB Badminton Academy (Velachery Branch)", sports:["Badminton"], locality:"Velachery", address:"7th St, TamilNadu Housing Board Colony, TNHB Colony, Velachery, Chennai 600042", phone:null, lat:12.9755, lng:80.222476, approx:true},
+  {name:"Badminton Court (Karapakkam)", sports:["Badminton"], locality:"Sholinganallur", address:"KCG College Rd, Karapakkam, Chennai 600097", phone:null, lat:12.901957, lng:80.231301, approx:true},
+  {name:"Badminton Court (Little Mount)", sports:["Badminton"], locality:"Guindy", address:"Race Course Rd, Little Mount, Guindy, Chennai 600032", phone:null, lat:12.999438, lng:80.212788, approx:true},
+  {name:"V Square Badminton Club", sports:["Badminton"], locality:"Medavakkam", address:"Medavakkam, Chennai", phone:null, lat:12.942632, lng:80.201602, approx:true},
+  {name:"Hybrid Athlete Badminton Club", sports:["Badminton"], locality:"Virugambakkam", address:"Virugambakkam, Chennai", phone:null, lat:13.05, lng:80.22, approx:true},
+  {name:"Hopes Feather Touch", sports:["Badminton"], locality:"Sholinganallur", address:"Nehru Street, Lakshmi Nagar 1st Street, Sholinganallur, Chennai", phone:null, lat:12.901957, lng:80.231301, approx:true},
+  {name:"Shree21 Badminton Academy", sports:["Badminton"], locality:"Anna Nagar", address:"20c, Bajanai Koil St, Ishwarya Nagar, Naduvankarai, Anna Nagar, Chennai 600040", phone:"+91 81222 25577", lat:13.078862, lng:80.21243, approx:false},
+  {name:"North Edge Elite AC", sports:["Badminton"], locality:"Anna Nagar", address:"853, 13th Main Rd, Anna Nagar West, Chennai 600040", phone:null, lat:13.092726, lng:80.20045, approx:false},
+  {name:"AVP Badminton Academy", sports:["Badminton"], locality:"Anna Nagar", address:"39th Street, Plot No.2, TVS Ave, Devar Nagar, Anna Nagar West Extension, Chennai 600101", phone:"+91 99400 39789", lat:13.091621, lng:80.189851, approx:false},
+  {name:"Space Badminton Academy", sports:["Badminton"], locality:"Anna Nagar", address:"28, 3rd floor, I Block, 1st Ave, R.V. Nagar, Anna Nagar East, Chennai 600102", phone:"+91 98406 62693", lat:13.088825, lng:80.223317, approx:false},
+  {name:"ASR Badminton Academy", sports:["Badminton"], locality:"Anna Nagar", address:"Ishwarya Nagar, Sabari Nagar, Anna Nagar, Chennai 600040", phone:"+91 99628 17236", lat:13.078875, lng:80.214761, approx:false},
+  {name:"M Square Badminton/Squash", sports:["Badminton","Squash"], locality:"T. Nagar", address:"4, Unnamalai Ammal St, T. Nagar, Chennai 600017", phone:"+91 76038 58983", lat:13.046916, lng:80.23843, approx:true},
+  {name:"Shuttle Up Badminton Academy", sports:["Badminton"], locality:"T. Nagar", address:"24, Mambalam High Rd, T. Nagar, Chennai 600017", phone:"+91 73582 11135", lat:13.049518, lng:80.230836, approx:false},
+  {name:"Indian Badminton Court", sports:["Badminton"], locality:"Nandanam", address:"3rd Floor, 726, Anna Salai, opp. YMCA, CIT Nagar East, Nandanam, Chennai 600035", phone:"+91 98847 90046", lat:13.028845, lng:80.236214, approx:false},
+  {name:"Anybody Can Smash Badminton Academy", sports:["Badminton"], locality:"West Mambalam", address:"1, Janakiraman St, Ramakrishnapuram, West Mambalam, Chennai 600033", phone:"+91 98844 58032", lat:13.043062, lng:80.228889, approx:false},
+  {name:"CJ Shuttle Hub", sports:["Badminton"], locality:"West Mambalam", address:"140/131, Lake View Rd, Gokulam Colony, Ramakrishnapuram, West Mambalam, Chennai 600033", phone:"+91 97908 51159", lat:13.037047, lng:80.223427, approx:false},
+  {name:"iShuttle Badminton Academy", sports:["Badminton"], locality:"Porur", address:"2nd, Plot no 11, Ganesh Ave 8th Cross St, Subasree Nagar, Porur, Chennai 600116", phone:"+91 98404 09487", lat:13.021708, lng:80.165842, approx:false},
+  {name:"S2F Indoor Badminton Arena", sports:["Badminton"], locality:"Porur", address:"Porur Garden-I, Porur Gardens, Porur, Vanagaram 600116", phone:"+91 98407 20071", lat:13.045692, lng:80.152981, approx:false},
+  {name:"Spartans Badminton Academy", sports:["Badminton"], locality:"Porur", address:"23 & 24, 2nd St, Ramakrishna Nagar, Govindaraj Nagar, Porur, Chennai 600116", phone:"+91 98406 04449", lat:13.026586, lng:80.157326, approx:false},
+  {name:"4 Lions Badminton Academy", sports:["Badminton"], locality:"Porur", address:"1/14, Siva Ramiyar St, Chettiyar Agaram, Porur, Chennai 600077", phone:"+91 73053 04111", lat:13.048381, lng:80.147061, approx:false},
+  {name:"Smasher 4.0 Sports Academy Porur", sports:["Badminton","Pickleball","Football"], locality:"Porur", address:"Plot No 1-6, Sekkilar Street, Kavya Garden, Mangla Nagar Extension, Porur, Chennai 600116", phone:"+91 90801 46461", lat:13.037829, lng:80.156131, approx:true},
+  {name:"Shuttler by Tiki Taka", sports:["Badminton"], locality:"Royapettah", address:"9th St, Jagadambal Colony, Othavadi, Royapettah, Chennai 600004", phone:null, lat:13.044917, lng:80.273593, approx:false},
+  {name:"Power Shuttlers Academy", sports:["Badminton"], locality:"Mylapore", address:"105, 230, VM St, Dwarka Colony, Mylapore, Chennai 600004", phone:"+91 95000 67265", lat:13.044092, lng:80.268121, approx:false},
+  {name:"Beach-Side Badminton Academy", sports:["Badminton"], locality:"Mylapore", address:"15B, Karaneeswarar Pagoda St, Karneeswarapuram, Mylapore, Chennai 600004", phone:"+91 98409 84065", lat:13.044092, lng:80.268121, approx:true},
+  {name:"V5 Badminton", sports:["Badminton"], locality:"Mandaveli", address:"44, 3rd floor, Venkatakrishna Rd, Jeth Nagar, Mandaveli, Chennai 600028", phone:"+91 99942 50005", lat:13.026755, lng:80.263268, approx:false},
+  {name:"GVR Sports Arena (Cricket & Badminton Academy) 2", sports:["Badminton"], locality:"Ambattur", address:"467/2b, Kambar St, Attipattu, Ambattur Industrial Estate, Chennai 600058", phone:"+91 93443 95369", lat:13.089443, lng:80.149494, approx:false},
+  {name:"Firehawk Badminton Academy", sports:["Badminton"], locality:"Ambattur", address:"Gnanamurthi Nagar, Ambattur, Chennai 600053", phone:"+91 84383 17275", lat:13.119805, lng:80.168888, approx:false},
+  {name:"VL Badminton Academy", sports:["Badminton"], locality:"Ambattur", address:"51, Sathsangam St, Venkatapuram, Ambattur, Chennai 600053", phone:"+91 95660 79688", lat:13.119917, lng:80.156014, approx:false},
+  {name:"Feathers Badminton Academy (Ambattur)", sports:["Badminton"], locality:"Ambattur", address:"2, Vadivelu Mudali St, Venkatapuram, Vijayalakshmi Puram, Ambattur, Chennai 600053", phone:"+91 98402 50473", lat:13.121023, lng:80.15162, approx:false},
+  {name:"Yu-Chan Badminton Academy Ambattur", sports:["Badminton"], locality:"Ambattur", address:"1, Taluk Office Rd, near TI Cycles, Gandhi Nagar, Ambattur, Chennai 600053", phone:"+91 98407 10313", lat:13.116417, lng:80.161339, approx:true},
+  {name:"Rainbow Badminton Court", sports:["Badminton"], locality:"Vadapalani", address:"13, Mannar 1st St, Thiru Nagar Colony, Vadapalani, Chennai 600026", phone:"+91 94440 20570", lat:13.058, lng:80.21063, approx:false},
+  {name:"Orange Badminton Court", sports:["Badminton"], locality:"Vadapalani", address:"2, 2nd St, Thirunagar, Vadapalani, Chennai 600026", phone:"+91 97910 41433", lat:13.05862, lng:80.209426, approx:false},
+  {name:"The Rainbow Badminton Court (Choolaimedu)", sports:["Badminton"], locality:"Choolaimedu", address:"15/37, Annasami street, Periyar Pathai, Avvai Nagar, Choolaimedu, Chennai 600094", phone:"+91 99624 56779", lat:13.059395, lng:80.218406, approx:false},
+  {name:"Yahweh Badminton Academy", sports:["Badminton"], locality:"Saligramam", address:"Old No#24, Arunachalam Rd, near SSR Pankajam Theatre, Kumaran Colony, Saligramam, Chennai 600093", phone:"+91 63829 34241", lat:13.052074, lng:80.204213, approx:false},
+  {name:"Falcon Sports Arena - Badminton Court Chennai", sports:["Badminton"], locality:"Perungudi", address:"41, 2B2, Seevaram 3rd St, Seevaram, Perungudi, Chennai 600096", phone:"+91 99529 92629", lat:12.953512, lng:80.241223, approx:false},
+  {name:"Nungambakkam Tennis Club", sports:["Tennis"], locality:"Nungambakkam", address:"4th Cross St, Lake Area, Nungambakkam, Chennai 600034", phone:null, lat:13.05, lng:80.22, approx:true},
+  {name:"Pro Tennis Footwork and Forty-Fifteen Academy", sports:["Tennis"], locality:"Adyar", address:"3rd Canal Cross Rd, Gandhi Nagar, Adyar, Chennai 600020", phone:null, lat:13.002049, lng:80.258022, approx:true},
+  {name:"Alan Tennis Academy Nandambakkam", sports:["Tennis"], locality:"Valasaravakkam", address:"6,7D, Wood Creek County 2nd Main Rd, Nandambakkam, Chennai 600016", phone:null, lat:13.050836, lng:80.174422, approx:true},
+  {name:"Tennis Academy (Nandambakkam)", sports:["Tennis"], locality:"Valasaravakkam", address:"26II, Ganapathi Colony, Wood Creek County, Nandambakkam, Chennai 600016", phone:null, lat:13.050836, lng:80.174422, approx:true},
+  {name:"Tennis Court (Padi)", sports:["Tennis"], locality:"Kolathur", address:"L-22, E Ave Rd, Periyar Nagar, TVS Industries, Padi, Chennai 600050", phone:null, lat:13.048884, lng:80.202843, approx:true},
+  {name:"Tennis School", sports:["Tennis"], locality:"Nungambakkam", address:"58, N Mada St, Tirumurthy Nagar, Nungambakkam, Chennai 600034", phone:null, lat:13.05, lng:80.22, approx:true},
+  {name:"CLRI Grounds", sports:["Tennis"], locality:"Adyar", address:"Lake View Rd, CLRI Staff Quarters, Teachers Colony, Adyar, Chennai 600025", phone:null, lat:13.002049, lng:80.258022, approx:true},
+  {name:"CLRI Tennis Academy", sports:["Tennis"], locality:"Adyar", address:"Adyar, Chennai", phone:null, lat:13.002049, lng:80.258022, approx:true},
+  {name:"Aaral Tennis Academy", sports:["Tennis"], locality:"Adyar", address:"Adyar, Chennai", phone:null, lat:13.002049, lng:80.258022, approx:true},
+  {name:"M.M. Tennis Academy", sports:["Tennis"], locality:"Adyar", address:"Adyar, Chennai", phone:null, lat:13.002049, lng:80.258022, approx:true},
+  {name:"T-Serve Tennis Academy", sports:["Tennis"], locality:"Thiruvanmiyur", address:"Thiruvanmiyur, Chennai", phone:null, lat:12.976844, lng:80.260435, approx:true},
+  {name:"Baseline Tennis Academy - OMR", sports:["Tennis"], locality:"Sholinganallur", address:"Sholinganallur, Chennai", phone:null, lat:12.901957, lng:80.231301, approx:true},
+  {name:"IIT Madras Tennis Courts", sports:["Tennis"], locality:"Pallikaranai", address:"IIT Madras Campus, Chennai", phone:null, lat:12.936809, lng:80.20372, approx:true},
+  {name:"Annanagar K Block Tennis Club", sports:["Tennis"], locality:"Anna Nagar", address:"13th St, Block K, Annanagar East, Chennai 600102", phone:"+91 73054 04777", lat:13.090338, lng:80.221851, approx:false},
+  {name:"ICF South Colony Tennis Court", sports:["Tennis"], locality:"Anna Nagar", address:"3rd St, ICF South Colony, Anna Nagar, Chennai 600040", phone:null, lat:13.093329, lng:80.214126, approx:false},
+  {name:"AE Block Tennis Court", sports:["Tennis","Badminton"], locality:"Anna Nagar", address:"41, 1st St, A E Block, Anna Nagar, Chennai 600040", phone:null, lat:13.083491, lng:80.206702, approx:false},
+  {name:"AF Tennis Academy", sports:["Tennis"], locality:"Anna Nagar", address:"AF Block, 1st St, Anna Nagar West, Chennai 600040", phone:"+91 91500 30777", lat:13.083602, lng:80.203936, approx:false},
+  {name:"Tennis Training Centre Chennai", sports:["Tennis"], locality:"T. Nagar", address:"52/144, Vidyodaya Main Rd, Gangai Karai Puram, T. Nagar, Chennai 600034", phone:"+91 98842 35463", lat:13.050758, lng:80.242577, approx:false},
+  {name:"Holy Angels Tennis Academy", sports:["Tennis"], locality:"T. Nagar", address:"Holy Angels School, Sir Thyagaraya Rd, T. Nagar, Chennai 600017", phone:"+91 94443 51525", lat:13.040471, lng:80.241877, approx:false},
+  {name:"Precision Tennis Academy", sports:["Tennis"], locality:"Arumbakkam", address:"833, Poonamallee High Rd, Ambedkar Nagar, Arumbakkam, Chennai 600106", phone:"+91 90255 87333", lat:13.072499, lng:80.211814, approx:false},
+  {name:"Tens turf", sports:["Cricket"], locality:"Padur", address:"Rajiv Gandhi Salai, above reliance smart bazaar, Padur, Chennai, Tamil Nadu 603103", phone:"+91 95661 10029", lat:12.808526, lng:80.227092, approx:false},
+  {name:"SMASH N KICK", sports:["Cricket","Football"], locality:"Kelambakkam", address:"1/212, Thaiyur, B-village, Rajiv Gandhi Salai, Kelambakkam, Chennai, Tamil Nadu 603103", phone:"+91 63696 79022", lat:12.775908, lng:80.215919, approx:false},
+  {name:"Dream Turf", sports:["Cricket"], locality:"Siruseri", address:"142/4, M.R Radha Rd, Siruseri, Tamil Nadu 603103", phone:"+91 86678 39985", lat:12.82268, lng:80.206105, approx:false},
+  {name:"Inbox turf & cricket Academy", sports:["Cricket"], locality:"Thazhambur", address:"2/341 bajanai kovil street, Thazhambur, Chennai, Tamil Nadu 600130", phone:"+91 97904 11232", lat:12.839243, lng:80.216961, approx:false},
+  {name:"FC Marina Football Turf & Box Cricket Thalambur", sports:["Football","Cricket"], locality:"Thazhambur", address:"6/858, SIPCOT-Thalambur Rd, Natham, Thazhambur, Chennai, Tamil Nadu 600130", phone:"+91 99622 20400", lat:12.840057, lng:80.214444, approx:false},
+  {name:"Turfhit", sports:["Cricket"], locality:"Navalur", address:"Thalambur Rd, near Mount Litera Zee School, Navalur, Tamil Nadu 600130", phone:"+91 93636 00130", lat:12.847337, lng:80.22454, approx:false},
+  {name:"Turfhit_Prime", sports:["Cricket"], locality:"Navalur", address:"Thalambur Rd, Navalur, Chennai, Tamil Nadu 600130", phone:"+91 89396 30130", lat:12.848246, lng:80.218435, approx:false},
+  {name:"Retro Friends Sports", sports:["Cricket","Football"], locality:"Siruseri", address:"No 180, Netaji street, Siruseri, Tamil Nadu 600130", phone:"+91 98848 99639", lat:12.841176, lng:80.205566, approx:false},
+  {name:"Indoor k28 cricket academy", sports:["Cricket"], locality:"Medavakkam", address:"Vinayaka nagar, 1st St, Medavakkam, Vengavasal, Tamil Nadu 600100", phone:"+91 63825 15900", lat:12.911279, lng:80.18417, approx:false},
+  {name:"RUNUP SPORTS VILLAGE (cricket ground & academy)", sports:["Cricket"], locality:"Medavakkam", address:"near Nm Green's cricket ground, Medavakkam, Vengavasal, Tamil Nadu 600126", phone:"+91 86100 04672", lat:12.9056, lng:80.184475, approx:false},
+  {name:"Goal-den Sports Arena", sports:["Cricket","Football"], locality:"Medavakkam", address:"2nd Floor, 965, Perumbakkam Main Rd, Medavakkam, Perumbakkam, Tamil Nadu 600100", phone:null, lat:12.907407, lng:80.201065, approx:false},
+  {name:"Madras Tekkerz Sports Turf and Football Academy - Medavakkam", sports:["Football"], locality:"Medavakkam", address:"1/401 Thiruvalluvar street, Vadakkupattu Main Rd, Medavakkam, Tamil Nadu 600100", phone:"+91 94446 43197", lat:12.933281, lng:80.189581, approx:false},
+  {name:"GOAT360 / Goat Dink Club", sports:["Pickleball"], locality:"Medavakkam", address:"2,5, Vigneshwara Nagar, 43/1, Jalladiampet, Medavakkam, Chennai, Tamil Nadu 600100", phone:"+91 96770 06886", lat:12.910679, lng:80.206441, approx:false},
+  {name:"Fcmarina Football Turf & Box Cricket Kovilambakkam", sports:["Football","Cricket"], locality:"Nanmangalam", address:"Manikandan st, Nanmangalam, Manikandan Nagar, Nanmangalam, Tamil Nadu 600129", phone:null, lat:12.944008, lng:80.181182, approx:false},
+  {name:"AADUKALAM MULTISPORTS TURF", sports:["Cricket"], locality:"Kolathur", address:"407, Sunnambu Kolathur Main Rd, Indirapuri, Kovilambakkam, Chennai, Tamil Nadu 600129", phone:"+91 76959 12024", lat:12.942752, lng:80.193337, approx:false},
+  {name:"Madras Tekkerz Turf", sports:["Cricket"], locality:"Kolathur", address:"4, 123A, Sunnambu Kolathur Main Rd, Rajam Nagar, Kovilambakkam, Chennai, Tamil Nadu 600129", phone:"+91 94446 43197", lat:12.946027, lng:80.200529, approx:false},
+  {name:"GQUBE Sports Arena (TURF & BADMINTON)", sports:["Badminton"], locality:"Kolathur", address:"5/853A, Ponniamman kovil main road, S.Kolathur, Kovilambakkam, Chennai, Tamil Nadu 600129", phone:"+91 89255 28298", lat:12.944626, lng:80.197066, approx:false},
+  {name:"CLUB11 TURF", sports:["Cricket"], locality:"Kolathur", address:"116, Dr Ambedkar Salai, S. Kolathur, Kovilambakkam, Chennai, Tamil Nadu 600117", phone:"+91 99441 28147", lat:12.949114, lng:80.198979, approx:false},
+  {name:"R2B Sports Turf Guduvancheri", sports:["Cricket"], locality:"Guduvancheri", address:"1 M K Nagar, Madambakkam Main Rd, Guduvancheri, Tamil Nadu 603202", phone:"+91 98401 39840", lat:12.849098, lng:80.054981, approx:false},
+  {name:"Biinnggo Sport", sports:["Cricket","Football"], locality:"Guduvancheri", address:"105 Jeeva Nagar Extenstion, Neelamangalam Rd, Guduvancheri, Chennai, Tamil Nadu 603202", phone:"+91 73959 22298", lat:12.854088, lng:80.037404, approx:false},
+  {name:"Seven Stones Sports Club", sports:["Cricket","Football"], locality:"Guduvancheri", address:"Madambakkam Main Rd, Guduvancheri, Madambakkam, Tamil Nadu 603202", phone:null, lat:12.850348, lng:80.05001, approx:false},
+  {name:"NEW OMR SPORTS ARENA", sports:["Cricket","Football"], locality:"Guduvancheri", address:"Perumattunallur Main Road, Guduvancheri, Tamil Nadu 603202", phone:"+91 90424 93205", lat:12.823003, lng:80.078299, approx:false},
+  {name:"POWER HOUSE SPORTS ARENA", sports:["Cricket","Football"], locality:"Guduvancheri", address:"71, Mahismathi Gdn Rd, Moolakazhani, Guduvancheri, Tamil Nadu 603202", phone:"+91 96003 25162", lat:12.821256, lng:80.075986, approx:false},
+  {name:"GAZON SPORTS COMPLEX", sports:["Cricket","Football"], locality:"Avadi", address:"No. 693/2B, Last avenue Road, Paruthippattu, Avadi, Chennai, Tamil Nadu 600071", phone:null, lat:13.090716, lng:80.105456, approx:false},
+  {name:"Hawx turf park", sports:["Cricket"], locality:"Avadi", address:"24th St, Avadi, Tamil Nadu 600054", phone:"+91 98407 46360", lat:13.108651, lng:80.113375, approx:false},
+  {name:"STRIK ZONE TURF", sports:["Cricket"], locality:"Avadi", address:"55, Divya Nagar, Morai, Avadi, Tamil Nadu 600055", phone:"+91 90030 28619", lat:13.177363, lng:80.07689, approx:false},
+  {name:"Rush Multi-Sport Centre (Badminton & Covered Turf)", sports:["Badminton"], locality:"Avadi", address:"Survey no:16/1, Green City, Paruthippattu, Avadi, Tamil Nadu 600077", phone:"+91 79043 39080", lat:13.091556, lng:80.121047, approx:false},
+  {name:"VV SPORTS ACADEMY", sports:["Cricket","Football"], locality:"Avadi", address:"3rd Left St, Hanuman Nagar, Thirumullaivoyal, Avadi, Tamil Nadu 600062", phone:null, lat:13.130961, lng:80.139898, approx:false},
+  {name:"PAV SPORTS CLUB", sports:["Cricket","Football"], locality:"Poonamallee", address:"28/1, Poonamallee Bypass Rd, Ettima Nagar, Poonamallee, Chennai, Tamil Nadu 600056", phone:"+91 63817 72545", lat:13.056333, lng:80.092608, approx:false},
+  {name:"Blue Label Sports Park", sports:["Cricket","Football"], locality:"Poonamallee", address:"Lakshmipuram Main Rd, Ramachandran Nagar, Poonamallee, Tamil Nadu 600056", phone:null, lat:13.042302, lng:80.097511, approx:false},
+  {name:"FC Marina - Iyyappanthangal", sports:["Football"], locality:"Iyyappanthangal", address:"46, First Main Road, Krishnaveni Ammal Nagar, Iyyappanthangal, Tamil Nadu 600056", phone:"+91 99622 20400", lat:13.041823, lng:80.138214, approx:false},
+  {name:"Super smash (Cricket nets)", sports:["Badminton","Cricket"], locality:"Avadi", address:"Maccana Industrial Estate, Velappanchavadi, Thiruverkadu, Tamil Nadu 600077", phone:"+91 99414 88258", lat:13.05713, lng:80.133817, approx:false},
+  {name:"Vision Sports and Games Turf", sports:["Cricket"], locality:"Tondiarpet", address:"No 47, 3rd Main St, Sundaram Pillai Nagar, Tondiarpet, Chennai, Tamil Nadu 600081", phone:"+91 92455 55599", lat:13.131651, lng:80.280092, approx:false},
+  {name:"GREENzSWARD", sports:["Cricket","Football"], locality:"Tondiarpet", address:"No 2/2, 81, Vaidhiyanathan St, Tondiarpet, Chennai, Tamil Nadu 600081", phone:"+91 90254 15048", lat:13.127486, lng:80.286819, approx:false},
+  {name:"The elite turf vadachennai", sports:["Cricket"], locality:"Tondiarpet", address:"144/2/2, Thiruvottiyur High Rd, Kasipuram, Tondiarpet, Chennai, Tamil Nadu 600081", phone:"+91 73581 60030", lat:13.131182, lng:80.291976, approx:false},
+  {name:"D'lords turf", sports:["Cricket"], locality:"Tondiarpet", address:"Kamaraj Colony Rd, Sivan Nagar, New Washermenpet, Tondiarpet, Chennai, Tamil Nadu 600081", phone:null, lat:13.13712, lng:80.287832, approx:false},
+  {name:"Sportsloop - The Cricket Turf", sports:["Cricket"], locality:"Tiruvottiyur", address:"19, new 86 T H road, Rajakadai, Tiruvottiyur, Chennai, Tamil Nadu 600019", phone:"+91 93605 08118", lat:13.150263, lng:80.299457, approx:false},
+  {name:"Lord of Turfz", sports:["Cricket"], locality:"Madhavaram", address:"1, Madavaram Red Hills Rd, Mettu Ma Nagar, Madhavaram, Chennai, Tamil Nadu 600060", phone:"+91 93423 71717", lat:13.154028, lng:80.227645, approx:false},
+  {name:"Upper Deck Turf", sports:["Cricket"], locality:"Red Hills", address:"2nd floor, 1/1101, byepass road, Red Hills, Chennai, Tamil Nadu 600052", phone:"+91 86673 51061", lat:13.196756, lng:80.183939, approx:false},
+  {name:"JK TURF", sports:["Cricket"], locality:"Puzhal", address:"592, Kannada Palaiyam, Puzhal, Tamil Nadu 600066", phone:"+91 96772 72377", lat:13.177386, lng:80.198124, approx:false},
+  {name:"S2H Turf", sports:["Cricket"], locality:"Red Hills", address:"63, Sothupakkam Rd, Palavoyal, Red Hills, Chennai, Tamil Nadu 600052", phone:"+91 95518 99989", lat:13.200189, lng:80.193195, approx:false},
+  {name:"Hattrick Indoor Turf", sports:["Cricket"], locality:"Madhavaram", address:"5th St, Ganapathy Nagar, Madhavaram Milk Colony, Chennai, Tamil Nadu 600051", phone:"+91 81899 22333", lat:13.149479, lng:80.24756, approx:false},
+  {name:"Dev Turf and Pickle ball", sports:["Pickleball"], locality:"Korattur", address:"42, Water Canal Rd, Venkateshwara Nagar, Korattur, Chennai, Tamil Nadu 600076", phone:"+91 90432 87809", lat:13.128493, lng:80.192847, approx:false},
+  {name:"Smashbounce Korattur", sports:["Badminton"], locality:"Korattur", address:"2, Govindaraj, Alamelu Ammal Nagar, Korattur, Chennai, Tamil Nadu 600099", phone:"+91 73388 11656", lat:13.122376, lng:80.198027, approx:false},
+  {name:"TURF TRIDENT", sports:["Cricket"], locality:"Korattur", address:"No. 56, Lakeview Garden, Korattur, Chennai, Tamil Nadu 600076", phone:"+91 90432 91992", lat:13.121332, lng:80.188923, approx:false},
+  {name:"NINJAS SPORTS ACADEMY", sports:["Cricket","Football"], locality:"Korattur", address:"Agraharam, Korattur, Chennai, Tamil Nadu 600076", phone:"+91 80000 43336", lat:13.117844, lng:80.191769, approx:false},
+  {name:"K Square Sports Arena", sports:["Cricket","Football"], locality:"Madura Madanan Kuppam", address:"Netaji Nagar Extension, Madura Madanan Kuppam, Chennai, Tamil Nadu 600099", phone:"+91 97911 62347", lat:13.133022, lng:80.184267, approx:false},
+  {name:"RV TURF cricket coaching, booking", sports:["Cricket"], locality:"Tambaram", address:"Kannan Nagar, Camp Rd, Selaiyur, Tambaram, Tamil Nadu 600073", phone:"+91 99941 47778", lat:12.921748, lng:80.142501, approx:false},
+  {name:"SSV Sports Club", sports:["Cricket","Football"], locality:"Tambaram", address:"25, 2nd Main Rd, Thirumalai Nagar, Sembakkam, Tambaram, Tamil Nadu 600064", phone:"+91 89397 75666", lat:12.936813, lng:80.158545, approx:false},
+  {name:"Letz Grow Sports Arena", sports:["Cricket","Football"], locality:"Tambaram", address:"9, 17th street, Thirumalai Nagar Extension Road, Sembakkam, Tambaram, Tamil Nadu 600064", phone:"+91 63811 04070", lat:12.937304, lng:80.161964, approx:false},
+  {name:"Rival sports arena", sports:["Cricket","Football"], locality:"Tambaram", address:"No:1/B, Amirthammal Avenue, Bhavani Nagar, Selaiyur, Tambaram, Tamil Nadu 600073", phone:"+91 99623 33397", lat:12.905072, lng:80.140921, approx:false},
+  {name:"HAT TRICK MULTISPORTS", sports:["Cricket","Football"], locality:"Urapakkam", address:"No.9, Kulasekaran Avenue Extension, Kilambakkam, Urapakkam, Tamil Nadu 603210", phone:"+91 63858 50666", lat:12.863778, lng:80.071998, approx:false},
+  {name:"SK Sports Academy Urapakkam", sports:["Cricket","Football"], locality:"Urapakkam", address:"2nd Street, Mayili Amman Kovil, Karanai Puducherry Rd, Urapakkam, Tamil Nadu 603202", phone:"+91 97908 24351", lat:12.851349, lng:80.081147, approx:false},
+  {name:"Seven Eleven's Turf", sports:["Cricket"], locality:"West Jafferkhanpet", address:"Kasi City Park, Pillaiyar Koil St, West Jafferkhanpet, Chennai, Tamil Nadu 600083", phone:"+91 84891 11711", lat:13.030503, lng:80.207155, approx:false},
+  {name:"Edit Sports Arena", sports:["Cricket","Football"], locality:"KK Nagar West", address:"1063, Munusamy Salai, KK Nagar West, Chennai, Tamil Nadu 600078", phone:"+91 99622 95172", lat:13.039429, lng:80.192831, approx:false},
+  {name:"G.O.A.T Arena", sports:["Cricket","Football"], locality:"Valasaravakkam", address:"87, Sri Lakshmi Nagar 3rd Main Rd, Valasaravakkam, Chennai, Tamil Nadu 600095", phone:"+91 96001 44638", lat:13.050836, lng:80.174422, approx:false},
+  {name:"ASR SPORTS ACADEMY, KILPAUK", sports:["Cricket","Football"], locality:"Kilpauk", address:"11/2, Aspiran Garden 2nd St, Kilpauk, Chennai, Tamil Nadu 600010", phone:"+91 98844 17236", lat:13.087271, lng:80.235887, approx:false},
+  {name:"Chennai's Sports Academy (Badminton & Pickleball)", sports:["Badminton","Pickleball"], locality:"Kilpauk", address:"46, 2nd Floor, Kilpauk Garden Road, Kilpauk, Chennai, Tamil Nadu 600010", phone:"+91 99416 24849", lat:13.083784, lng:80.234454, approx:false},
+  {name:"Serve N Smash", sports:["Badminton"], locality:"Kilpauk", address:"No 12, AK Swami Street, A K Swamy Nagar, Kilpauk, Chennai, Tamil Nadu 600012", phone:"+91 78748 79777", lat:13.090419, lng:80.242703, approx:false},
+  {name:"UNIQ BADMINTON ACADEMY", sports:["Badminton"], locality:"Medavakkam", address:"16, Medavakkam Tank Rd, Kilpauk, Chennai, Tamil Nadu 600010", phone:"+91 75502 28654", lat:13.087544, lng:80.243878, approx:false},
+  {name:"Shuffle Sports", sports:["Cricket","Football"], locality:"Chetpet", address:"3rd Floor, Krishnormi 3, Nowroji Rd, Chetpet, Chennai, Tamil Nadu 600031", phone:"+91 73050 02333", lat:13.074551, lng:80.236739, approx:false},
+  {name:"Aadukalam Sports Arena", sports:["Cricket","Football"], locality:"Padi", address:"48B, Mahaveer St, Sathya Nagar, Padi, Chennai, Tamil Nadu 600050", phone:null, lat:13.093041, lng:80.17773, approx:false},
+  {name:"Pickle and Chill | Pickleball Court", sports:["Pickleball"], locality:"Anna Nagar", address:"1850, 6th Ave, Anna Nagar West, Chennai, Tamil Nadu 600040", phone:null, lat:13.093081, lng:80.203099, approx:false},
+  {name:"Winkin", sports:["Cricket","Football"], locality:"Annanagar East", address:"81, No. 18, 2nd Main Rd, F Block, Annanagar East, Chennai, Tamil Nadu 600102", phone:"+91 99407 00179", lat:13.085634, lng:80.220456, approx:false},
+  {name:"Dill-lightful Dinks", sports:["Pickleball"], locality:"Madipakkam", address:"1024, 8th Main Rd, Ram Nagar South, Madipakkam, Chennai, Tamil Nadu 600091", phone:"+91 93846 22874", lat:12.961177, lng:80.210868, approx:false},
+  {name:"SPIN SERVE PICKLEBALL ACADEMY", sports:["Pickleball"], locality:"Madipakkam", address:"147, Balaji St, Srinivasa Nagar, Madipakkam, Chennai, Tamil Nadu 600091", phone:"+91 96921 00600", lat:12.966767, lng:80.213854, approx:false},
+  {name:"PickleChase", sports:["Pickleball"], locality:"Velachery", address:"137, Major Mukund Varadharajan Rd, V.O.C Nagar, Velachery, Chennai, Tamil Nadu 600042", phone:"+91 91765 45123", lat:12.971943, lng:80.220246, approx:false},
+  {name:"VR Sports Hub", sports:["Cricket","Football"], locality:"Velachery", address:"Railway Station, Subramaniam Colony, Velachery, Chennai, Tamil Nadu 600042", phone:null, lat:12.968319, lng:80.219262, approx:false},
+  {name:"Battle Knights Sports Arena", sports:["Cricket","Football"], locality:"Poonamallee", address:"4, 119, Mount Poonamallee Rd, MGR Garden, Ramapuram, Chennai, Tamil Nadu 600089", phone:"+91 80561 99189", lat:13.022324, lng:80.181751, approx:false},
+  {name:"Head & Tail Turf & Sports Academy", sports:["Cricket"], locality:"Ramapuram", address:"4/17A, 1st Cross St, Rayala Nagar, Ramapuram, Chennai, Tamil Nadu 600089", phone:"+91 91768 72003", lat:13.029946, lng:80.18426, approx:false},
+  {name:"Turfvolution", sports:["Cricket"], locality:"Manapakkam", address:"35, Sethulakshmi Ave, Parthasarathy Nagar, Manapakkam, Chennai, Tamil Nadu 600089", phone:"+91 99415 45456", lat:13.019478, lng:80.182969, approx:false},
+  {name:"GO ART TURF", sports:["Cricket"], locality:"Ramapuram", address:"Ramapuram, Arumugam Nagar, Mugalivakkam, Chennai, Tamil Nadu 600125", phone:"+91 86678 98456", lat:13.017781, lng:80.169177, approx:false},
+  {name:"Throttle Sportz World", sports:["Cricket","Football"], locality:"Manapakkam", address:"78/55, River View Rd, Manapakkam, Chennai, Tamil Nadu 600125", phone:null, lat:13.009519, lng:80.180433, approx:false},
+  {name:"Fc Marina Football Turf & Box Cricket Injambakkam", sports:["Football","Cricket"], locality:"Injambakkam", address:"24f, Radiant Ave, Cholamandal Artists Village, Injambakkam, Chennai, Tamil Nadu 600115", phone:"+91 99622 20400", lat:12.918129, lng:80.254035, approx:false},
+  {name:"VGP Sports World", sports:["Cricket","Football"], locality:"Injambakkam", address:"Jagajeevanram Ave, Injambakkam, Chennai, Tamil Nadu 600115", phone:"+91 89259 27406", lat:12.913699, lng:80.249399, approx:false},
+  {name:"Bay Sports Academy | Cricket Turf | Box Cricket", sports:["Cricket"], locality:"Injambakkam", address:"No.2/159, East Coast Rd, Injambakkam, Chennai, Tamil Nadu 600115", phone:"+91 97909 35625", lat:12.927441, lng:80.251544, approx:false},
+  {name:"Leap Sports Academy ECR", sports:["Cricket","Football"], locality:"Injambakkam", address:"Hanuman Colony 1st St, Injambakkam, Chennai, Tamil Nadu 600115", phone:"+91 99402 09896", lat:12.928485, lng:80.249739, approx:false},
+  {name:"Tiki Taka @ VAELS", sports:["Cricket","Football"], locality:"Injambakkam", address:"Pon Vidhyashram Gardens, SH 49, Injambakkam, Chennai, Tamil Nadu 600115", phone:"+91 87544 90508", lat:12.918953, lng:80.24813, approx:false},
+];
+
+// ---------- derive filter data ----------
+const SPORT_ORDER = ["Cricket","Football","Badminton","Tennis","Pickleball","Table Tennis","Squash","Basketball","Volleyball"];
+const sportCounts = {};
+venues.forEach(v => v.sports.forEach(s => { sportCounts[s] = (sportCounts[s]||0) + 1; }));
+const ALL_SPORTS = SPORT_ORDER.filter(s => sportCounts[s]);
+
+const localityCounts = {};
+venues.forEach(v => { localityCounts[v.locality] = (localityCounts[v.locality]||0) + 1; });
+const ALL_LOCALITIES = Object.keys(localityCounts).sort((a,b)=> localityCounts[b]-localityCounts[a] || a.localeCompare(b));
+
+let activeSport = null;
+let activeLocality = null;
+let searchTerm = "";
+let userLocation = null; // {lat, lng} once we have it
+let nearbyActive = false;
+
+const icons = {Cricket:"🏏", Football:"⚽", Badminton:"🏸", Tennis:"🎾", Pickleball:"🥒", "Table Tennis":"🏓", Squash:"🎯", Basketball:"🏀", Volleyball:"🏐"};
+
+// ---------- distance helpers ----------
+function haversineKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function setNearbyStatus(message, type){
+  const el = document.getElementById("nearbyStatus");
+  if(!message){ el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.className = "nearby-status " + (type || "info");
+  el.innerHTML = message;
+}
+
+function requestNearby(){
+  const btn = document.getElementById("nearbyBtn");
+
+  if(!("geolocation" in navigator)){
+    setNearbyStatus("Your browser doesn't support location detection, so I can't find turfs near you automatically. Try searching by locality instead.", "error");
+    return;
+  }
+
+  // Check current permission state first, where supported, so we can give a clear
+  // message if location services / site permission is already blocked.
+  const proceed = () => {
+    btn.disabled = true;
+    btn.textContent = "📍 Locating…";
+    setNearbyStatus("Getting your current location…", "info");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        nearbyActive = true;
+        activeSport = null;
+        activeLocality = null;
+        searchTerm = "";
+        document.getElementById("search").value = "";
+        btn.disabled = false;
+        btn.textContent = "📍 Nearby";
+        btn.classList.add("active");
+        setNearbyStatus("Showing turfs closest to your current location, nearest first.", "info");
+        renderAll();
+      },
+      (err) => {
+        btn.disabled = false;
+        btn.textContent = "📍 Nearby";
+        if(err.code === err.PERMISSION_DENIED){
+          setNearbyStatus(
+            "Location access is turned off for this page, so I can't find turfs near you. " +
+            "Please enable location services / allow location access for this site in your browser settings, then tap “Nearby” again.",
+            "error"
+          );
+        } else if(err.code === err.POSITION_UNAVAILABLE){
+          setNearbyStatus("Your device couldn't determine a location right now. Check that location services are turned on and try again.", "error");
+        } else if(err.code === err.TIMEOUT){
+          setNearbyStatus("Getting your location took too long. Please try again.", "error");
+        } else {
+          setNearbyStatus("Something went wrong getting your location. Please try again.", "error");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  // Use the Permissions API when available to detect an already-denied state
+  // and show a clearer message before even prompting.
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({ name: "geolocation" }).then((result) => {
+      if(result.state === "denied"){
+        setNearbyStatus(
+          "Location access is currently blocked for this page. To see nearby turfs, please turn on location services and allow location access for this site in your browser settings, then tap “Nearby” again.",
+          "error"
+        );
+        return;
+      }
+      proceed();
+    }).catch(proceed);
+  } else {
+    proceed();
+  }
+}
+
+function clearNearby(){
+  nearbyActive = false;
+  userLocation = null;
+  document.getElementById("nearbyBtn").classList.remove("active");
+  setNearbyStatus(null);
+}
+
+document.getElementById("nearbyBtn").addEventListener("click", () => {
+  if(nearbyActive){
+    clearNearby();
+    renderAll();
+  } else {
+    requestNearby();
+  }
+});
+
+function primaryIcon(sportsArr){
+  return icons[sportsArr[0]] || "🏟";
+}
+
+function renderScoreboard(){
+  const total = venues.length;
+  const localityTotal = ALL_LOCALITIES.length;
+  const topSports = ["Cricket","Football","Badminton","Tennis"].filter(s=>sportCounts[s]);
+  const cells = [
+    {n: total, l:"TOTAL VENUES"},
+    ...topSports.map(s => ({n: sportCounts[s], l:s.toUpperCase()})),
+    {n: localityTotal, l:"LOCALITIES"}
+  ];
+  document.getElementById("scoreboard").innerHTML = cells.map(c =>
+    `<div class="score-cell"><div class="score-num">${c.n}</div><div class="score-label">${c.l}</div></div>`
+  ).join("");
+}
+
+function renderSportChips(){
+  const el = document.getElementById("sportChips");
+  const allCount = venues.length;
+  let html = `<button type="button" class="chip ${activeSport===null?'active':''}" data-sport="">All sports<span class="count">${allCount}</span></button>`;
+  ALL_SPORTS.forEach(s=>{
+    const c = venues.filter(v=>v.sports.includes(s)).length;
+    html += `<button type="button" class="chip ${activeSport===s?'active':''}" data-sport="${s}">${icons[s]} ${s}<span class="count">${c}</span></button>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".chip").forEach(chip=>{
+    chip.addEventListener("click", ()=>{
+      const s = chip.getAttribute("data-sport");
+      activeSport = s === "" ? null : s;
+      if(nearbyActive){ clearNearby(); }
+      renderAll();
+    });
+  });
+}
+
+function renderLocalityChips(){
+  const el = document.getElementById("localityChips");
+  let html = `<button type="button" class="chip ${activeLocality===null?'active':''}" data-loc="">All localities<span class="count">${venues.length}</span></button>`;
+  ALL_LOCALITIES.forEach(loc=>{
+    html += `<button type="button" class="chip ${activeLocality===loc?'active':''}" data-loc="${loc}">${loc}<span class="count">${localityCounts[loc]}</span></button>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".chip").forEach(chip=>{
+    chip.addEventListener("click", ()=>{
+      const l = chip.getAttribute("data-loc");
+      activeLocality = l === "" ? null : l;
+      if(nearbyActive){ clearNearby(); }
+      renderAll();
+    });
+  });
+}
+
+function filteredVenues(){
+  let list = venues.filter(v=>{
+    if(activeSport && !v.sports.includes(activeSport)) return false;
+    if(activeLocality && v.locality !== activeLocality) return false;
+    if(searchTerm){
+      const hay = (v.name+" "+v.locality+" "+v.address+" "+v.sports.join(" ")).toLowerCase();
+      if(!hay.includes(searchTerm.toLowerCase())) return false;
+    }
+    return true;
+  });
+  if(nearbyActive && userLocation){
+    list = list.map(v => ({ v, d: haversineKm(userLocation.lat, userLocation.lng, v.lat, v.lng) }));
+    list.sort((a,b) => a.d - b.d);
+    list = list.map(x => Object.assign({}, x.v, { _distanceKm: x.d }));
+  }
+  return list;
+}
+
+function renderLocalitySummary(){
+  const el = document.getElementById("localitySummary");
+  if(nearbyActive){
+    el.style.display = "none";
+    return;
+  }
+  if(activeLocality){
+    const list = venues.filter(v=>v.locality===activeLocality);
+    const bySport = {};
+    ALL_SPORTS.forEach(s=>{
+      const c = list.filter(v=>v.sports.includes(s)).length;
+      if(c>0) bySport[s]=c;
+    });
+    const parts = Object.keys(bySport).map(s=>`<strong>${bySport[s]}</strong> ${s.toLowerCase()}`);
+    el.style.display = "block";
+    el.innerHTML = `<strong>${activeLocality}</strong> has <strong>${list.length}</strong> turf${list.length===1?'':'s'} listed — ${parts.join(", ")}.`;
+  } else if(activeSport){
+    const list = venues.filter(v=>v.sports.includes(activeSport));
+    const byLoc = {};
+    list.forEach(v=>{ byLoc[v.locality] = (byLoc[v.locality]||0)+1; });
+    const top = Object.keys(byLoc).sort((a,b)=>byLoc[b]-byLoc[a]).slice(0,5);
+    el.style.display = "block";
+    el.innerHTML = `<strong>${list.length}</strong> ${activeSport.toLowerCase()} venues across the city. Most concentrated in: ` +
+      top.map(l=>`<strong>${l}</strong> (${byLoc[l]})`).join(", ") + ".";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function renderCards(){
+  const list = filteredVenues();
+  const cardsEl = document.getElementById("cards");
+  const emptyEl = document.getElementById("emptyState");
+  document.getElementById("resultCount").textContent = nearbyActive
+    ? `${list.length} turf${list.length===1?'':'s'} — nearest first`
+    : `${list.length} turf${list.length===1?'':'s'} shown`;
+
+  if(list.length === 0){
+    cardsEl.innerHTML = "";
+    emptyEl.style.display = "block";
+    return;
+  }
+  emptyEl.style.display = "none";
+
+  cardsEl.innerHTML = list.map(v=>{
+    const tags = v.sports.map(s=>`<span class="tag">${icons[s]} ${s}</span>`).join("") + `<span class="tag locality">${v.locality}</span>`;
+    const mapQuery = encodeURIComponent(v.name + ", " + v.address);
+    const phoneHtml = v.phone
+      ? `<a class="phone-known" href="tel:${v.phone.replace(/\s+/g,'')}">${v.phone}</a>`
+      : `<span class="phone-unknown">Phone not publicly listed</span>`;
+    const distanceHtml = (typeof v._distanceKm === "number")
+      ? `<div class="card-distance">${v._distanceKm < 1 ? Math.round(v._distanceKm*1000)+" m away" : v._distanceKm.toFixed(1)+" km away"}</div>`
+      : "";
+    return `
+      <div class="card">
+        <div class="card-icon">${primaryIcon(v.sports)}</div>
+        <div class="card-body">
+          ${distanceHtml}
+          <h3>${v.name}</h3>
+          <div class="card-tags">${tags}</div>
+          <p class="card-address">${v.address}</p>
+          <a class="map-link" href="https://www.google.com/maps/search/?api=1&query=${mapQuery}" target="_blank" rel="noopener">View on map ↗</a>
+        </div>
+        <div class="card-actions">
+          ${phoneHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAll(){
+  renderSportChips();
+  renderLocalityChips();
+  renderLocalitySummary();
+  renderCards();
+}
+
+document.getElementById("search").addEventListener("input", (e)=>{
+  searchTerm = e.target.value;
+  if(nearbyActive && searchTerm){ clearNearby(); }
+  renderAll();
+  renderSuggestions(searchTerm);
+});
+
+document.getElementById("clearFilters").addEventListener("click", ()=>{
+  activeSport = null;
+  activeLocality = null;
+  searchTerm = "";
+  document.getElementById("search").value = "";
+  clearNearby();
+  renderAll();
+  hideSuggestions();
+});
+
+// ---------- search suggestions ----------
+let suggestionItems = [];
+let highlightedIndex = -1;
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function highlightMatch(text, term){
+  const idx = text.toLowerCase().indexOf(term.toLowerCase());
+  if(idx === -1) return escapeHtml(text);
+  return escapeHtml(text.slice(0,idx)) + "<mark>" + escapeHtml(text.slice(idx, idx+term.length)) + "</mark>" + escapeHtml(text.slice(idx+term.length));
+}
+
+function buildSuggestions(term){
+  const t = term.trim().toLowerCase();
+  if(t.length < 1) return [];
+
+  const localityMatches = ALL_LOCALITIES
+    .filter(loc => loc.toLowerCase().includes(t))
+    .slice(0, 4)
+    .map(loc => ({ kind: "locality", label: loc, meta: `${localityCounts[loc]} turf${localityCounts[loc]===1?'':'s'}` }));
+
+  const venueMatches = venues
+    .filter(v => v.name.toLowerCase().includes(t) || v.address.toLowerCase().includes(t))
+    .slice(0, 6)
+    .map(v => ({ kind: "venue", label: v.name, meta: v.locality, venue: v }));
+
+  return [...localityMatches, ...venueMatches].slice(0, 8);
+}
+
+function renderSuggestions(term){
+  const box = document.getElementById("suggestions");
+  highlightedIndex = -1;
+  if(!term || term.trim().length < 1){
+    hideSuggestions();
+    return;
+  }
+  suggestionItems = buildSuggestions(term);
+  if(suggestionItems.length === 0){
+    hideSuggestions();
+    return;
+  }
+  box.innerHTML = suggestionItems.map((item, i) => {
+    if(item.kind === "locality"){
+      return `<div class="suggestion-item" data-index="${i}">
+        <span class="suggestion-icon">📍</span>
+        <span class="suggestion-text">
+          <div class="suggestion-name">${highlightMatch(item.label, term)}</div>
+          <div class="suggestion-meta">${item.meta}</div>
+        </span>
+        <span class="suggestion-kind">Area</span>
+      </div>`;
+    }
+    const sportIcon = icons[item.venue.sports[0]] || "🏟";
+    return `<div class="suggestion-item" data-index="${i}">
+      <span class="suggestion-icon">${sportIcon}</span>
+      <span class="suggestion-text">
+        <div class="suggestion-name">${highlightMatch(item.label, term)}</div>
+        <div class="suggestion-meta">${item.meta}</div>
+      </span>
+      <span class="suggestion-kind">Turf</span>
+    </div>`;
+  }).join("");
+  box.style.display = "block";
+
+  box.querySelectorAll(".suggestion-item").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      selectSuggestion(parseInt(el.getAttribute("data-index"), 10));
+    });
+  });
+}
+
+function hideSuggestions(){
+  const box = document.getElementById("suggestions");
+  box.style.display = "none";
+  box.innerHTML = "";
+  suggestionItems = [];
+  highlightedIndex = -1;
+}
+
+function selectSuggestion(index){
+  const item = suggestionItems[index];
+  if(!item) return;
+  if(nearbyActive){ clearNearby(); }
+  if(item.kind === "locality"){
+    activeLocality = item.label;
+    searchTerm = "";
+    document.getElementById("search").value = "";
+  } else {
+    searchTerm = item.label;
+    document.getElementById("search").value = item.label;
+  }
+  hideSuggestions();
+  renderAll();
+}
+
+document.getElementById("search").addEventListener("keydown", (e)=>{
+  const box = document.getElementById("suggestions");
+  if(box.style.display === "none" || suggestionItems.length === 0) return;
+
+  if(e.key === "ArrowDown"){
+    e.preventDefault();
+    highlightedIndex = Math.min(highlightedIndex + 1, suggestionItems.length - 1);
+    updateHighlight();
+  } else if(e.key === "ArrowUp"){
+    e.preventDefault();
+    highlightedIndex = Math.max(highlightedIndex - 1, 0);
+    updateHighlight();
+  } else if(e.key === "Enter"){
+    if(highlightedIndex >= 0){
+      e.preventDefault();
+      selectSuggestion(highlightedIndex);
+    }
+  } else if(e.key === "Escape"){
+    hideSuggestions();
+  }
+});
+
+function updateHighlight(){
+  const box = document.getElementById("suggestions");
+  box.querySelectorAll(".suggestion-item").forEach((el, i)=>{
+    el.classList.toggle("highlighted", i === highlightedIndex);
+    if(i === highlightedIndex) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+document.getElementById("search").addEventListener("focus", (e)=>{
+  if(e.target.value){ renderSuggestions(e.target.value); }
+});
+
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".search-wrap")){
+    hideSuggestions();
+  }
+});
+
+// ---------- Gemini-powered chat ----------
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_KEY_STORAGE = "turfChatGeminiKey";
+
+function getSavedKey(){
+  try { return localStorage.getItem(GEMINI_KEY_STORAGE) || ""; }
+  catch(e) { return ""; }
+}
+
+function saveKey(key){
+  try { localStorage.setItem(GEMINI_KEY_STORAGE, key); }
+  catch(e) { /* localStorage unavailable — key just won't persist across reloads */ }
+}
+
+function initChat(){
+  const keyInput = document.getElementById("geminiKeyInput");
+  const saveBtn = document.getElementById("saveKeyBtn");
+  const chatInput = document.getElementById("chatInput");
+  const chatSendBtn = document.getElementById("chatSendBtn");
+  const setupBox = document.getElementById("chatKeySetup");
+  const keyNote = document.getElementById("chatKeyNote");
+
+  const existing = getSavedKey();
+  if(existing){
+    keyInput.value = existing;
+    unlockChatInput();
+  }
+
+  function unlockChatInput(){
+    chatInput.disabled = false;
+    chatSendBtn.disabled = false;
+    setupBox.style.opacity = "0.7";
+  }
+
+  saveBtn.addEventListener("click", ()=>{
+    const key = keyInput.value.trim();
+    if(!key){ return; }
+    saveKey(key);
+    unlockChatInput();
+    appendChatMessage("Key saved for this browser. Ask away — e.g. \"which cricket turfs are in Sholinganallur\" or \"any pickleball courts near Velachery with a phone number?\"", "bot");
+  });
+
+  chatSendBtn.addEventListener("click", sendChatMessage);
+  chatInput.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ sendChatMessage(); }
+  });
+}
+
+function appendChatMessage(text, role, extraClass){
+  const log = document.getElementById("chatLog");
+  const div = document.createElement("div");
+  div.className = "chat-msg " + role + (extraClass ? " " + extraClass : "");
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+function buildVenueContext(question){
+  const q = question.toLowerCase();
+  const matchesSport = ALL_SPORTS.filter(s => q.includes(s.toLowerCase()));
+  const matchesLocality = ALL_LOCALITIES.filter(l => q.includes(l.toLowerCase()));
+
+  let candidates = venues;
+  if(matchesSport.length || matchesLocality.length){
+    candidates = venues.filter(v => {
+      const sportOk = matchesSport.length === 0 || v.sports.some(s => matchesSport.includes(s));
+      const locOk = matchesLocality.length === 0 || matchesLocality.includes(v.locality);
+      return sportOk && locOk;
+    });
+  } else {
+    // no sport/locality keyword matched — fall back to loose keyword search over name/address
+    const words = q.split(/\s+/).filter(w => w.length > 3);
+    if(words.length){
+      candidates = venues.filter(v => {
+        const hay = (v.name + " " + v.address).toLowerCase();
+        return words.some(w => hay.includes(w));
+      });
+    }
+  }
+
+  candidates = candidates.slice(0, 25);
+
+  const lines = candidates.map(v =>
+    `- ${v.name} | Sports: ${v.sports.join(", ")} | Area: ${v.locality} | Address: ${v.address} | Phone: ${v.phone || "not listed"}`
+  );
+
+  return {
+    count: candidates.length,
+    text: lines.join("\n")
+  };
+}
+
+async function sendChatMessage(){
+  const chatInput = document.getElementById("chatInput");
+  const question = chatInput.value.trim();
+  if(!question) return;
+  const key = getSavedKey();
+  if(!key){
+    appendChatMessage("Please save a Gemini API key above first.", "bot", "error");
+    return;
+  }
+
+  appendChatMessage(question, "user");
+  chatInput.value = "";
+  chatInput.disabled = true;
+  document.getElementById("chatSendBtn").disabled = true;
+
+  const pending = appendChatMessage("Thinking…", "bot", "pending");
+
+  const context = buildVenueContext(question);
+  const systemPreamble = context.count > 0
+    ? `You are a helpful assistant embedded in a Chennai sports turf directory website. Answer the user's question using ONLY the venue data below — do not invent venues, addresses, or phone numbers that aren't listed. If the data doesn't fully answer the question, say so plainly and suggest the user use the site's search/filter or check Google Maps directly. Keep answers concise and use bullet points for lists of venues.\n\nVENUE DATA (${context.count} matching venues from a ${venues.length}-venue directory):\n${context.text}`
+    : `You are a helpful assistant embedded in a Chennai sports turf directory website covering ${venues.length} venues. No venues in the local dataset matched this question's keywords. Tell the user plainly that you couldn't find a specific match in the directory, and suggest they try a different sport/locality name or use the search/filter above. Do not invent venue details.`;
+
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: systemPreamble + "\n\nUSER QUESTION: " + question }] }]
+      })
+    });
+
+    const data = await resp.json();
+    pending.remove();
+
+    if(!resp.ok){
+      const msg = (data && data.error && data.error.message) ? data.error.message : `Request failed (HTTP ${resp.status}).`;
+      appendChatMessage("Gemini API error: " + msg + " — double-check your API key is valid and has quota.", "bot", "error");
+    } else {
+      const text = data && data.candidates && data.candidates[0] && data.candidates[0].content
+        && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+        ? data.candidates[0].content.parts[0].text
+        : "Sorry, I didn't get a usable response from Gemini. Please try rephrasing.";
+      appendChatMessage(text, "bot");
+    }
+  } catch(err){
+    pending.remove();
+    appendChatMessage("Couldn't reach Gemini's API — check your internet connection and try again.", "bot", "error");
+  }
+
+  chatInput.disabled = false;
+  document.getElementById("chatSendBtn").disabled = false;
+  chatInput.focus();
+}
+
+initChat();
+
+renderScoreboard();
+renderAll();
+</script>
+
+</body>
+</html>
